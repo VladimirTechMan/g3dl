@@ -1,0 +1,395 @@
+/**
+ * Main loop and scheduling controller.
+ *
+ * Responsibilities:
+ * - Prevent overlapping GPU steps (serialize step() calls).
+ * - Run play mode ticks at a target cadence derived from UI speed.
+ * - Drive rendering via invalidation (render only when needed).
+ * - Implement frame pacing to keep the UI responsive on mobile.
+ *
+ * The loop controller intentionally does not own UI concerns (icons, panels). Instead,
+ * those are communicated via hooks.
+ */
+
+/**
+ * @typedef {Object} LoopHooks
+ * @property {() => number} getSpeedDelayMs
+ * @property {() => boolean} isInteracting
+ * @property {(ts:number) => boolean} updateScreenShow
+ * @property {() => boolean} updateInertia
+ * @property {(isPlaying:boolean) => void} onPlayStateChanged
+ * @property {(args:{ syncStats:boolean, changed:boolean }) => { statsFresh:boolean, population:number }} onAfterStep
+ * @property {(res:{ generation:number, population:number }) => void} onPopulationReadback
+ * @property {() => boolean} [getAutoStopEnabled]
+ */
+
+// iOS/Android devices tend to have coarse pointers. We use this to pick frame pacing.
+const IS_COARSE_POINTER = (() => {
+  try {
+    return !!(
+      window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+    );
+  } catch (_) {
+    return false;
+  }
+})();
+
+// Frame pacing defaults.
+// - On coarse-pointer devices, cap rendering to keep main-thread work predictable.
+// - When the lantern effect is enabled, cap rendering on all devices to reduce GPU load/battery usage.
+// - Pointer interaction (drag/pan) should feel immediate, so we bypass the cap while interacting.
+const COARSE_POINTER_MAX_FPS = 30;
+const LANTERN_MAX_FPS_FINE = 30;
+const LANTERN_MAX_FPS_COARSE = 20;
+
+// Screen show camera animation is intentionally capped to preserve battery while remaining visually smooth.
+const SCREENSHOW_MAX_FPS_FINE = 30;
+const SCREENSHOW_MAX_FPS_COARSE = 20;
+
+export class LoopController {
+  /**
+   * @param {{ renderer: any, hooks: LoopHooks }} args
+   */
+  constructor({ renderer, hooks }) {
+    this.renderer = renderer;
+    this.hooks = hooks;
+
+    // Simulation step serialization.
+    this.stepQueue = Promise.resolve();
+
+    // Play mode state.
+    this.isPlaying = false;
+    this.playTimer = null;
+    this.playSessionId = 0;
+    this.playTickInProgress = false;
+
+    // Render scheduling.
+    this.renderRafId = 0;
+    this.renderTimerId = 0;
+    this.renderRequested = true; // render once after init
+    this.lastRenderTimeMs = 0;
+
+    // Resize handling.
+    this.lastResizeEventMs = 0;
+    this.appResizePending = true;
+
+    // Bind once.
+    this._onFrameBound = (ts) => this._onFrame(ts);
+
+    // Last completed step info (used by play tick for auto-stop decisions).
+    this._lastStepInfo = { statsFresh: false, population: 0, changed: true };
+  }
+
+  /**
+   * Treat a resize/orientation change as a render trigger.
+   */
+  notifyResizeEvent() {
+    this.lastResizeEventMs = performance.now();
+    this.appResizePending = true;
+    this.requestRender(true);
+  }
+
+  /**
+   * Request a render. Uses invalidation to avoid rendering when idle.
+   *
+   * @param {boolean} [immediate]
+   */
+  requestRender(immediate = false) {
+    this.renderRequested = true;
+
+    if (immediate && this.renderTimerId) {
+      clearTimeout(this.renderTimerId);
+      this.renderTimerId = 0;
+    }
+
+    if (this.renderRafId) return;
+    if (this.renderTimerId && !immediate) return;
+
+    this.renderRafId = requestAnimationFrame(this._onFrameBound);
+  }
+
+  /**
+   * Stop play mode and invalidate any scheduled ticks.
+   * Note: This cannot cancel an in-flight GPU step; it prevents the next tick.
+   */
+  stopPlaying() {
+    // Invalidate any pending tick callbacks.
+    this.playSessionId++;
+
+    if (this.playTimer) {
+      clearTimeout(this.playTimer);
+      this.playTimer = null;
+    }
+
+    if (!this.isPlaying) return;
+
+    this.isPlaying = false;
+    try {
+      this.hooks.onPlayStateChanged(false);
+    } catch (_) {
+      // ignore
+    }
+
+    this.requestRender(true);
+  }
+
+  /**
+   * If a tick is currently waiting on a timer, reschedule it using the current
+   * speed delay. Useful when the user changes the speed slider during play.
+   */
+  rescheduleNextTick() {
+    if (!this.isPlaying) return;
+    if (this.playTickInProgress) return;
+
+    if (this.playTimer) {
+      clearTimeout(this.playTimer);
+      this.playTimer = null;
+    }
+    const sessionId = this.playSessionId;
+    this.playTimer = setTimeout(() => this._playTick(sessionId), this.hooks.getSpeedDelayMs());
+  }
+
+  /**
+   * Start play mode (if not already playing).
+   */
+  startPlaying() {
+    if (this.isPlaying) return;
+
+    // Any previous play session is obsolete.
+    this.playSessionId++;
+
+    this.isPlaying = true;
+    try {
+      this.hooks.onPlayStateChanged(true);
+    } catch (_) {
+      // ignore
+    }
+
+    this.requestRender(true);
+
+    // Schedule first tick.
+    const id = this.playSessionId;
+    this.playTimer = setTimeout(() => this._playTick(id), 0);
+  }
+
+  /**
+   * @returns {Promise<void>}
+   */
+  async waitForIdle() {
+    try {
+      await this.stepQueue;
+    } catch (_) {
+      // Ignore errors from prior steps; the UI can still recover.
+    }
+  }
+
+  /**
+   * Queue exactly one simulation step, ensuring steps never overlap.
+   * Returns the renderer's "changed" value for that step.
+   *
+   * @param {boolean} [syncStats]
+   * @returns {Promise<boolean>}
+   */
+  queueStep(syncStats = true) {
+    const p = this.stepQueue.then(async () => {
+      const changed = await this.renderer.step({ syncStats, pace: true });
+
+      let statsFresh = false;
+      let population = 0;
+      try {
+        const res = this.hooks.onAfterStep({ syncStats, changed });
+        statsFresh = !!res.statsFresh;
+        population = res.population;
+      } catch (_) {
+        // ignore
+      }
+
+      this._lastStepInfo = { statsFresh, population, changed };
+
+      this.requestRender();
+
+      // In fast-play mode (syncStats=false), refresh population periodically without stalling steps.
+      if (!syncStats && typeof this.renderer.requestPopulationReadback === "function") {
+        this.renderer
+          .requestPopulationReadback()
+          .then((r) => {
+            if (!r) return;
+            try {
+              this.hooks.onPopulationReadback(r);
+            } catch (_) {
+              // ignore
+            }
+          })
+          .catch(() => {});
+      }
+
+      return changed;
+    });
+
+    // Keep the queue alive even if a step fails.
+    this.stepQueue = p.catch(() => {});
+    return p;
+  }
+
+  /**
+   * One tick of play mode: run one step, then schedule the next tick.
+   *
+   * @param {number} sessionId
+   */
+  async _playTick(sessionId) {
+    if (!this.isPlaying || sessionId !== this.playSessionId) return;
+    if (this.playTickInProgress) return; // extra safety against re-entry
+
+    this.playTickInProgress = true;
+    const t0 = performance.now();
+
+    let changed = true;
+
+    try {
+      const speedDelayMs = this.hooks.getSpeedDelayMs();
+      const syncStats = speedDelayMs >= 200;
+      changed = await this.queueStep(syncStats);
+    } catch (e) {
+      console.error("Step failed:", e);
+      this.stopPlaying();
+      this.playTickInProgress = false;
+      return;
+    } finally {
+      this.playTickInProgress = false;
+    }
+
+    if (!this.isPlaying || sessionId !== this.playSessionId) return;
+
+    // Auto-stop if population is zero or scene is static (only when stats for this generation are fresh).
+    const autoStopEnabled =
+      typeof this.hooks.getAutoStopEnabled === "function"
+        ? !!this.hooks.getAutoStopEnabled()
+        : true;
+
+    const { statsFresh, population } = this._lastStepInfo;
+    // Auto-stop policy:
+    // - Always stop when the grid becomes empty (population == 0).
+    // - Optionally stop when the configuration becomes stable (changed == false).
+    if (statsFresh && population === 0) {
+      this.stopPlaying();
+      return;
+    }
+    if (autoStopEnabled && statsFresh && !changed) {
+      this.stopPlaying();
+      return;
+    }
+
+const elapsed = performance.now() - t0;
+    const delay = Math.max(0, this.hooks.getSpeedDelayMs() - elapsed);
+
+    this.playTimer = setTimeout(() => this._playTick(sessionId), delay);
+  }
+
+  /**
+   * Rendering callback.
+   * @param {number} ts
+   */
+  _onFrame(ts) {
+    this.renderRafId = 0;
+    if (!this.renderer) return;
+
+    // Treat resize events as a rendering trigger; we only reconfigure the swapchain when we are
+    // about to render, and we cap the cadence during continuous resizing to avoid flicker.
+    const resizingActive = !!this.lastResizeEventMs && ts - this.lastResizeEventMs < 250;
+    let resized = false;
+
+    const screenShowAnimating = (() => {
+      try {
+        return !!this.hooks.updateScreenShow(ts);
+      } catch (_) {
+        return false;
+      }
+    })();
+
+    const inertiaActive = (() => {
+      try {
+        return !!this.hooks.updateInertia();
+      } catch (_) {
+        return false;
+      }
+    })();
+
+    const lanternAnimating = !!(
+      this.renderer && this.renderer.lanternEnabled > 0.5
+    );
+
+    const interacting = (() => {
+      try {
+        return !!this.hooks.isInteracting();
+      } catch (_) {
+        return false;
+      }
+    })();
+
+    const animating = lanternAnimating || screenShowAnimating;
+
+    let targetFps = 0;
+    if (animating) {
+      targetFps = IS_COARSE_POINTER
+        ? Math.min(LANTERN_MAX_FPS_COARSE, SCREENSHOW_MAX_FPS_COARSE)
+        : Math.min(LANTERN_MAX_FPS_FINE, SCREENSHOW_MAX_FPS_FINE);
+    } else if (resizingActive || this.appResizePending) {
+      targetFps = IS_COARSE_POINTER ? 20 : 30;
+    } else if (IS_COARSE_POINTER) {
+      targetFps = COARSE_POINTER_MAX_FPS;
+    }
+
+    const minIntervalMs = targetFps ? 1000 / targetFps : 0;
+    const canRender =
+      interacting ||
+      !minIntervalMs ||
+      !this.lastRenderTimeMs ||
+      ts - this.lastRenderTimeMs >= minIntervalMs;
+
+    const needsRender =
+      this.appResizePending ||
+      resizingActive ||
+      resized ||
+      inertiaActive ||
+      this.renderRequested ||
+      animating;
+
+    if (needsRender && canRender) {
+      if (this.appResizePending || resizingActive) {
+        try {
+          resized = !!this.renderer.resize();
+        } catch (_) {
+          resized = false;
+        }
+        this.appResizePending = false;
+      }
+
+      this.renderer.render();
+      this.lastRenderTimeMs = ts;
+      this.renderRequested = false;
+    }
+
+    if (
+      inertiaActive ||
+      this.renderRequested ||
+      this.appResizePending ||
+      resizingActive ||
+      resized ||
+      animating
+    ) {
+      if (!interacting && minIntervalMs) {
+        const dueMs = this.lastRenderTimeMs ? this.lastRenderTimeMs + minIntervalMs : ts;
+        const delayMs = Math.max(0, dueMs - ts);
+
+        this.renderTimerId = setTimeout(() => {
+          this.renderTimerId = 0;
+          if (!this.renderRafId) {
+            this.renderRafId = requestAnimationFrame(this._onFrameBound);
+          }
+        }, delayMs);
+      } else {
+        this.renderRafId = requestAnimationFrame(this._onFrameBound);
+      }
+    }
+  }
+}

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes, maximum-scale=5"
+    />
+    <title>Game of 3D Life</title>
+    <link rel="stylesheet" href="styles.css?v=ios26-ui-1" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="glCanvas"></canvas>
+
+      <div id="ui-overlay">
+        <button id="infoBtn" title="About">i</button>
+        <header id="header">
+          <h1>Game of 3D Life</h1>
+          <span class="credit">Made by Vlad for Fun with GenAI</span>
+        </header>
+
+        <div id="controls">
+          <div class="button-row">
+            <button id="playBtn" title="Run/Pause simulation (Space)" class="icon-btn">
+              <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg
+                id="pauseIcon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style="display: none"
+              >
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+            </button>
+            <button id="stepBtn" title="Advance one generation (S)" class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+              </svg>
+            </button>
+            <button id="resetBtn" title="Reset to random state (R)" class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                />
+              </svg>
+            </button>
+            <button id="settingsBtn" title="Settings" class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                />
+              </svg>
+            </button>
+            <button id="fullscreenBtn" title="Toggle fullscreen (F)" class="icon-btn">
+              <svg
+                id="fullscreenEnterIcon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                />
+              </svg>
+              <svg
+                id="fullscreenExitIcon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style="display: none"
+              >
+                <path
+                  d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                />
+              </svg>
+            </button>
+
+            <button id="helpBtn" title="Help" class="icon-btn">?</button>
+          </div>
+
+          <div id="help-panel" class="panel-body hidden">
+            <h2>Help</h2>
+              <p>
+                <strong>Game of 3D Life</strong> is a
+                <a
+                  href="https://content.wolfram.com/sites/13/2018/02/01-3-1.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >3D cellular automaton</a
+                >
+                inspired by
+                <a
+                  href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Conway&#39;s Game of Life</a
+                >. Simulation and rendering run entirely on the GPU via
+                <strong>WebGPU</strong>.
+              </p>
+
+              <h3>Notes</h3>
+              <ul>
+                <li>
+                  <span class="help-accent">Comfort warning</span>: Lantern
+                  lighting and Screen show can include pulsing light and
+                  continuous camera motion. If you are sensitive to
+                  flashing/pulsing light or prone to motion sickness, enable
+                  with care.
+                </li>
+                <li>
+                  This app requires a browser with
+                  <strong>WebGPU</strong> support.
+                </li>
+                <li>
+                  On mobile, start with a smaller <strong>Grid edge</strong> and
+                  a slower <strong>Run speed</strong> for smoother performance
+                  and lower battery use.
+                </li>
+                <li>
+                  <strong>Run speed</strong> sets the target delay between
+                  generations. If the GPU cannot keep up, the simulation will
+                  run as fast as it can.
+                </li>
+              </ul>
+
+              <h3>Main controls</h3>
+              <ul>
+                <li>
+                  <strong>Run / Pause</strong>: Start or pause continuous
+                  simulation. Starting Run closes Settings and Help
+                  automatically.
+                </li>
+                <li>
+                  <strong>Step</strong>: Advance one generation (also closes
+                  Settings and Help).
+                </li>
+                <li>
+                  <strong>Reset</strong>: Create a new Generation 0 and reset
+                  counters.
+                </li>
+                <li>
+                  <strong>Settings</strong>: Open/close the Settings panel.
+                </li>
+                <li><strong>Help</strong>: Open/close this Help panel.</li>
+              </ul>
+
+              <h3>Navigation</h3>
+              <ul>
+                <li><strong>Drag</strong>: Rotate the view.</li>
+                <li><strong>Shift / Alt / Right-drag</strong>: Pan.</li>
+                <li><strong>Wheel / pinch</strong>: Zoom.</li>
+                <li>
+                  When <strong>Screen show</strong> is enabled, manual
+                  navigation is disabled while the simulation is running.
+                </li>
+              </ul>
+
+              <h3>Keyboard shortcuts</h3>
+              <ul>
+                <li>
+                  <strong>Space</strong>: Run / pause (unless the Settings panel
+                  is open).
+                </li>
+                <li><strong>S</strong>: Step one generation.</li>
+                <li><strong>R</strong>: Reset (new Generation 0).</li>
+                <li><strong>F</strong>: Fullscreen toggle.</li>
+                <li><strong>C</strong>: Center view.</li>
+                <li>
+                  <strong>B</strong>: Reset view (disabled while Screen show is
+                  actively running).
+                </li>
+              </ul>
+
+              <h3>Settings explained</h3>
+              <ul>
+                <li>
+                  <strong>Run speed</strong>: Target delay between generations.
+                </li>
+                <li>
+                  <strong>Auto-stop when stable</strong>: Pause automatically
+                  when no cells change.
+                </li>
+                <li>
+                  <strong>Grid boundaries</strong>: Show the cube “walls” to
+                  help with depth perception.
+                </li>
+                <li>
+                  <strong>Grid edge</strong>: Grid dimension (<em>N×N×N</em>).
+                  Larger grids require more GPU memory and compute.
+                </li>
+                <li>
+                  <strong>Gen0 edge</strong>: Size of the randomized cube used
+                  when resetting.
+                </li>
+                <li>
+                  <strong>Gen0 density</strong>: Fraction of cells set alive in
+                  the initial cube at reset.
+                </li>
+                <li>
+                  <strong>Cell colors</strong>: Gradient applied to living cells
+                  (top → bottom).
+                </li>
+                <li>
+                  <strong>Background</strong>: Background gradient (top →
+                  bottom).
+                </li>
+                <li>
+                  <strong>Lantern lighting</strong>: Warmer look with
+                  candle-like flicker (continues even while paused).
+                </li>
+                <li>
+                  <strong>Screen show</strong>: Cinematic camera autopilot while
+                  running. Starting Run always fades out before a new pass.
+                  Turning Screen show off leaves the camera where it is.
+                </li>
+                <li>
+                  <strong>Game rule preset</strong>: Select a predefined
+                  survival/birth rule set.
+                </li>
+                <li>
+                  <strong>Survival / Birth</strong>: Comma-separated numbers and
+                  ranges (e.g., <code>4-6,8</code>).
+                </li>
+                <li>
+                  <strong>Wrap around</strong>: Wrap edges so the grid behaves
+                  like a 3D torus (no borders).
+                </li>
+                <li>
+                  <strong>Copy URL with settings</strong>: Copy a shareable URL
+                  snapshot of the current Settings values.
+                </li>
+              </ul>
+          </div>
+
+          <div id="settings-panel" class="panel-body hidden">
+            <div class="control-group">
+              <label class="control-label slider-label speed-slider">
+                <span>Run speed</span>
+                <input
+                  type="range"
+                  id="speedSlider"
+                  min="50"
+                  max="1000"
+                  value="300"
+                />
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="stableStopCheckbox" checked />
+                <span>Auto-stop when stable</span>
+              </label>
+            </div>
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="gridProjectionCheckbox" checked />
+                <span>Grid boundaries</span>
+              </label>
+            </div>
+
+            <div class="control-group size-inputs">
+              <label class="control-label input-label">
+                <span>Grid edge</span>
+                <div class="input-wrapper">
+                  <input
+                    type="number"
+                    id="sizeInput"
+                    value="96"
+                    min="4"
+                    max="256"
+                    inputmode="numeric"
+                  />
+                </div>
+              </label>
+              <label class="control-label input-label">
+                <span>Gen0 edge</span>
+                <div class="input-wrapper">
+                  <input
+                    type="number"
+                    id="initSizeInput"
+                    value="64"
+                    min="2"
+                    max="128"
+                    inputmode="numeric"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label slider-label density-slider-label">
+                <span>Gen0 density</span>
+                <div class="density-slider-wrapper">
+                  <input
+                    type="range"
+                    id="densitySlider"
+                    min="1"
+                    max="30"
+                    value="15"
+                  />
+                  <div id="densityTip" class="slider-tip">15%</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="control-group color-pickers">
+              <div class="color-label">
+                <span>Cell colors</span>
+                <div class="color-gradient-pickers">
+                  <input
+                    type="color"
+                    class="color-picker"
+                    id="cellColorPicker"
+                    value="#4dff9a"
+                    title="Top color"
+                  />
+                  <span class="gradient-arrow">→</span>
+                  <input
+                    type="color"
+                    class="color-picker"
+                    id="cellColorPicker2"
+                    value="#4a9eff"
+                    title="Bottom color"
+                  />
+                </div>
+              </div>
+              <div class="color-label">
+                <span>Background</span>
+                <div class="color-gradient-pickers">
+                  <input
+                    type="color"
+                    class="color-picker"
+                    id="bgColorPicker"
+                    value="#1f1339"
+                    title="Top color"
+                  />
+                  <span class="gradient-arrow">→</span>
+                  <input
+                    type="color"
+                    class="color-picker"
+                    id="bgColorPicker2"
+                    value="#0a2542"
+                    title="Bottom color"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="lanternCheckbox" />
+                <span>Lantern lighting</span>
+              </label>
+            </div>
+
+            <div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="screenShowCheckbox" />
+                <span>Screen show</span>
+              </label>
+            </div>
+            <div class="control-group rules-group">
+              <label class="select-label">
+                <span>Game rule preset</span>
+                <select id="presetSelect">
+                  <option value="5766">[5-7][6-6] "Rule 5766"</option>
+                  <option value="4555">[4-5][5-5] "Rule 4555"</option>
+                  <option value="5655">[5-6][5-5] "Rule 5655"</option>
+                  <option value="4526">[4-5][2-6] "Amoeba"</option>
+                  <option value="6657">[6-6][5-7] "Rule 6657"</option>
+                  <option value="5867">[5-8][6-7] "Rule 5867"</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+
+              <div class="rules-inputs">
+                <label>
+                  <span>Survival</span>
+                  <div class="input-wrapper">
+                    <input
+                      type="text"
+                      id="surviveInput"
+                      value="5-7"
+                      placeholder="e.g. 4-6"
+                    />
+                  </div>
+                </label>
+                <label>
+                  <span>Birth</span>
+                  <div class="input-wrapper">
+                    <input
+                      type="text"
+                      id="birthInput"
+                      value="6"
+                      placeholder="e.g. 5-7"
+                    />
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toroidalCheckbox" />
+                <span>Wrap around</span>
+              </label>
+            </div>
+
+            <div class="control-group copy-url-group">
+              <button id="copyUrlBtn" class="copy-url-btn" type="button">
+                Copy URL with settings
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="stats">
+          <div class="stats-row">
+            <div class="stat">
+              <span class="stat-label">Generation</span>
+              <span id="generation" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Population</span>
+              <span id="population" class="stat-value">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="src/app/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1091 @@
+/* Game of 3D Life - Styles */
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-tertiary: #1a1a25;
+  --text-primary: #e8e8ec;
+  --text-secondary: #8888a0;
+  --accent-primary: #4a9eff;
+  --accent-secondary: #7b5cff;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --font-display: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "SF Mono", "Consolas", "Monaco", monospace;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+  --transition-fast: 150ms ease;
+  /* Controls sizing: keep expanded panels the same width as the top button row */
+  --controls-pad-y: 16px;
+  --controls-edge-pad: 16px;
+  --icon-btn-size: 42px;
+  --icon-btn-gap: 6px;
+  --controls-button-count: 6;
+  --controls-button-gap-count: 5;
+  --controls-content-width: calc(
+    (var(--icon-btn-size) * var(--controls-button-count)) +
+    (var(--icon-btn-gap) * var(--controls-button-gap-count)) +
+    (var(--controls-edge-pad) * 2)
+  );
+  /* Typography scale for UI elements */
+  --panel-font-size: 0.95rem;
+  --panel-line-height: 1.4;
+/* HUD insets for corner UI elements */
+  /* Include safe-area insets where supported (iOS notch/home indicator). */
+  --hud-inset-left: max(24px, calc(env(safe-area-inset-left, 0px) + 24px));
+  --hud-inset-right: max(24px, calc(env(safe-area-inset-right, 0px) + 24px));
+  --hud-inset-bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Base font size - 16px on desktop, scales on mobile */
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+#glCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 800ms ease;
+  will-change: opacity;
+}
+
+#glCanvas.screen-show-dimmed {
+  opacity: 0;
+}
+
+#glCanvas:active {
+  cursor: grabbing;
+}
+
+#glCanvas.nav-disabled,
+#glCanvas.nav-disabled:active {
+  cursor: default;
+}
+
+/* UI Overlay */
+#ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+#ui-overlay > * {
+  pointer-events: auto;
+}
+
+/* Header */
+#header {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 12px 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#header h1 {
+  font-weight: 600;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+  white-space: nowrap;
+  /* Scale to match credit line width - credit is ~185px at 11px font */
+  font-size: clamp(18px, 5vw, 26px);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+#header .credit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+/* Controls Container (chrome + positioning) */
+#controls {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: content-box;
+  padding: var(--controls-pad-y) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: var(--controls-content-width);
+  max-width: calc(100vw - var(--hud-inset-left) - var(--hud-inset-right));
+  max-height: calc(100vh - 48px - (var(--controls-pad-y) * 2));
+  box-shadow: 0 8px 32px var(--shadow-color);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 100;
+}
+
+/* Panel body (Settings/Help) */
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100vh - 134px);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-left: var(--controls-edge-pad);
+  padding-right: calc(var(--controls-edge-pad) + 6px);
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 158, 255, 0.65) rgba(255, 255, 255, 0.06);
+
+  /* Use rem so mobile/root scaling affects readability without needing many overrides */
+  font-size: var(--panel-font-size);
+  line-height: var(--panel-line-height);
+}
+
+#settings-panel {
+  align-items: stretch;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Panel scrollbars (WebKit) */
+.panel-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+#settings-panel::-webkit-scrollbar-track {
+  border-radius: 8px;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(74, 158, 255, 0.55);
+  border-radius: 10px;
+  border: 2px solid rgba(18, 18, 26, 0.7);
+}
+
+#settings-panel::-webkit-scrollbar-thumb {
+  background: rgba(74, 158, 255, 0.65);
+  border-radius: 8px;
+  border: none;
+}
+
+.panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 158, 255, 0.75);
+}
+
+#settings-panel .control-group {
+  align-items: stretch;
+}
+
+/* Help button and panel */
+#helpBtn {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+#help-panel h2 {
+  font-size: 1.15em;
+  margin: 0;
+  padding: 0;
+}
+
+#help-panel h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 10px 0 0 0;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+#help-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+#help-panel ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+#help-panel li {
+  margin: 4px 0;
+}
+
+#help-panel .help-accent {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Help links: keep text color consistent on dark background, use underline for affordance */
+#help-panel a,
+#help-panel a:visited {
+  color: inherit;
+}
+
+#help-panel a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: currentColor;
+}
+
+#help-panel a:hover {
+  text-decoration-color: currentColor;
+}
+
+#help-panel a:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.button-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.button-row .icon-btn + .icon-btn {
+  margin-left: var(--icon-btn-gap);
+}
+
+.button-row .icon-btn:first-child {
+  margin-left: var(--controls-edge-pad);
+}
+
+.button-row .icon-btn:last-child {
+  margin-right: var(--controls-edge-pad);
+}
+
+/* Icon-only buttons */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  margin: 0;
+  padding: 0;
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+  opacity: 0.85;
+}
+
+.icon-btn:hover {
+  background: var(--bg-primary);
+}
+
+.icon-btn:hover svg {
+  opacity: 1;
+}
+
+.icon-btn:active {
+  transform: scale(0.97);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.icon-btn:disabled:hover {
+  background: var(--bg-tertiary);
+}
+
+.icon-btn:disabled:active {
+  transform: none;
+}
+
+/* Settings button active state */
+#settingsBtn.active {
+  background: var(--accent-primary);
+}
+
+#settingsBtn.active svg {
+  opacity: 1;
+}
+
+/* Help button active state */
+#helpBtn.active {
+  background: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Speed slider - standalone horizontal layout */
+.slider-label.speed-slider {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+}
+.speed-slider > span:first-child {
+  flex-shrink: 0;
+}
+
+
+.speed-slider input[type="range"] {
+  /* In a horizontal flex row, avoid width: 100% forcing the container wider when panels open. */
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+/* Common label typography for Settings labels. */
+.control-label {
+  font-size: inherit;
+  color: var(--text-primary);
+}
+/* Sliders */
+.slider-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.slider-label > span:first-child {
+  display: inline;
+}
+
+/* Density slider with tip */
+.density-slider-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.density-slider-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.slider-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  color: #000000;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  pointer-events: none;
+}
+
+.slider-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--accent-primary);
+  border-bottom: none;
+}
+
+.density-slider-label:hover .slider-tip,
+.density-slider-wrapper:hover .slider-tip,
+.slider-tip.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(74, 158, 255, 0.3);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(74, 158, 255, 0.3);
+  border-radius: 2px;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: rgba(74, 158, 255, 0.3);
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+  margin-top: -6px; /* Center thumb on track: (16px - 4px) / 2 = 6px */
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Rules Group */
+.rules-group {
+  gap: 6px;
+}
+
+/* Size Inputs */
+.size-inputs {
+  flex-direction: row;
+  gap: 12px;
+}
+
+.size-inputs .input-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-label > span:first-child {
+  display: inline;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent-primary);
+}
+
+.input-wrapper input[type="number"] {
+  flex: 1;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: inherit;
+-moz-appearance: textfield;
+}
+
+.input-wrapper input[type="number"]::-webkit-outer-spin-button,
+.input-wrapper input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-wrapper input[type="number"]:focus {
+  outline: none;
+}
+
+
+.input-wrapper.invalid {
+  border-color: #ff4a6a;
+}
+
+/* Also reflect native HTML validity (e.g., min/max) where supported */
+.input-wrapper:has(input:invalid) {
+  border-color: #ff4a6a;
+}
+
+/* Color Labels - match slider-label style */
+.color-pickers {
+  gap: 6px;
+}
+
+.color-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: inherit;
+  color: var(--text-primary);
+}
+
+.color-label > span:first-child {
+  flex: 1;
+}
+
+.color-gradient-pickers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gradient-arrow {
+  color: var(--text-primary);
+  /* Keep the arrow typography consistent with the surrounding Settings labels. */
+  font-size: inherit;
+  font-weight: inherit;
+  opacity: 0.6;
+}
+
+.color-picker {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+  margin: 0;
+  outline: none;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.color-picker::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.color-picker:focus-visible {
+  outline: 2px solid rgba(74, 158, 255, 0.75);
+  outline-offset: 2px;
+}
+
+.rules-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.rules-inputs label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: inherit;
+  color: var(--text-primary);
+}
+
+.rules-inputs input[type="text"] {
+  flex: 1;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: inherit;
+}
+
+.rules-inputs input[type="text"]:focus {
+  outline: none;
+}
+
+
+
+/* Select dropdown for presets */
+.select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: inherit;
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Checkbox label layout: center text vertically next to the box */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.select-label select {
+  width: 100%;
+  padding: 9px 34px 9px 10px;
+  background: var(--bg-tertiary);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888a0' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+
+.select-label select:hover {
+  border-color: rgba(74, 158, 255, 0.55);
+}
+
+.select-label select:focus {
+  outline: none;
+  border-color: rgba(74, 158, 255, 0.85);
+}
+
+.select-label select option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  background: var(--bg-tertiary);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 12px;
+  border: solid var(--bg-primary);
+  border-width: 0 3px 3px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+.checkbox-label input[type="checkbox"]:hover {
+  border-color: var(--accent-primary);
+}
+
+/* Stats */
+#stats {
+  position: fixed;
+  bottom: var(--hud-inset-bottom);
+  left: var(--hud-inset-left);
+  pointer-events: auto;
+  touch-action: auto;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.stats-row {
+  display: flex;
+  gap: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.credit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Help */
+/* Responsive */
+
+/* Info button (hidden by default; shown on touch devices) */
+#infoBtn {
+  display: none;
+  position: fixed;
+  right: var(--hud-inset-right);
+  bottom: var(--hud-inset-bottom);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: #ffffff;
+  border: none;
+  border-radius: 50%;
+  color: #000000;
+  cursor: pointer;
+  z-index: 95;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  font-size: 15px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, serif;
+  align-items: center;
+  justify-content: center;}
+
+#infoBtn:hover {
+  /* Keep white background; avoid color-shift on hover. */
+}
+
+#infoBtn:active {
+  transform: scale(0.96);
+}
+
+#infoBtn.active {
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.35);
+}
+
+/* Touch ergonomics (coarse-pointer devices) */
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Settings: Copy URL button (flat, rounded, centered) */
+#settings-panel .copy-url-group {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.5rem;
+  padding-bottom: 0.25rem;
+}
+
+#settings-panel .copy-url-btn {
+  appearance: none;
+  border: 1px solid rgba(74, 158, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(232, 241, 255, 0.95);
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  font: inherit;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+#settings-panel .copy-url-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(74, 158, 255, 0.55);
+}
+
+#settings-panel .copy-url-btn:active {
+  transform: translateY(1px);
+}
+
+#settings-panel .copy-url-btn:focus-visible {
+  outline: 2px solid rgba(74, 158, 255, 0.65);
+  outline-offset: 2px;
+}
+
+/* Mobile styles */
+@media (hover: none) and (pointer: coarse) {
+  /* iOS: slightly larger base size and stable text rendering */
+  html {
+    font-size: 18px;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+
+  /* Touch-first sizing: improve legibility and meet iOS tap/typing ergonomics */
+  :root {
+    /* Increase panel text size and leading on mobile (Settings/Help). */
+    --panel-font-size: 20px;
+    --panel-line-height: 1.5;
+
+    /* Ensure primary controls meet comfortable tap target size. */
+    --icon-btn-size: 48px;
+    --icon-btn-gap: 10px;
+
+    /* Slightly tighten edge padding to offset the wider buttons. */
+    --controls-edge-pad: 14px;
+  }
+  /* Panel legibility on touch devices (iPhone/iPad): use explicit sizes so it is obvious
+     and to avoid any iOS text autosizing edge cases. */
+  .panel-body {
+    font-size: var(--panel-font-size);
+    line-height: var(--panel-line-height);
+  }
+
+  /* iOS Safari: prevent focus auto-zoom by keeping form controls at >= 16px.
+     We intentionally match the panel font size for readability. */
+  .panel-body input[type="text"],
+  .panel-body input[type="number"],
+  .panel-body select,
+  .panel-body textarea {
+    font-size: var(--panel-font-size);
+  }
+
+
+
+
+  /* About (mobile): hide the permanent header and use the "i" button instead. */
+  /* About/Info button: meet touch target guidance */
+  #infoBtn {
+    display: flex;
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+  }
+
+
+  /* Keep the header hidden unless explicitly toggled via the "i" button. */
+  #header {
+    display: none;
+  }
+
+  #header.visible {
+    display: flex;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(80vw, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+    max-width: min(80vw, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+    padding: 16px 22px;
+    z-index: 120;
+  }
+
+  #header.visible h1 {
+    font-size: clamp(22px, 7vw, 34px);
+    white-space: normal;
+  }
+
+  #header.visible .credit {
+    font-size: 0.95rem;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  /* Touch targets */
+  #playBtn,
+  #resetBtn,
+  #stepBtn,
+  #fullscreenBtn,
+  #settingsBtn,
+  /* Help button: keep large hit target and readable "?" */
+  #helpBtn {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    width: var(--icon-btn-size);
+    height: var(--icon-btn-size);
+    min-width: var(--icon-btn-size);
+    min-height: var(--icon-btn-size);
+  }
+
+  /* iOS Safari: avoid focus auto-zoom by keeping form controls at >= 16px. */
+  #settings-panel .input-wrapper input[type="text"],
+  #settings-panel .input-wrapper input[type="number"] {
+    font-size: var(--panel-font-size); /* >=16px and matches panel text */
+    padding: 10px 12px;
+  }
+
+  #settings-panel .input-wrapper {
+    min-height: 44px; /* comfortable tap target */
+  }
+
+  /* Slightly larger icons inside the control buttons for touch */
+  .icon-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Color pickers: meet touch target guidance */
+  .color-picker {
+    width: 44px;
+    height: 44px;
+    padding: 2px;
+  }
+
+  /* Larger checkbox box (separate from label hit area). */
+  #settings-panel .checkbox-label input[type="checkbox"] {
+    width: 28px;
+    height: 28px;
+  }
+
+
+
+  .color-picker {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Larger slider thumb/track for touch */
+  #settings-panel input[type="range"] {
+    height: 28px;
+    background: transparent;
+  }
+
+  #settings-panel input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(74, 158, 255, 0.3);
+  }
+
+  #settings-panel input[type="range"]::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+    margin-top: -11px; /* Center thumb on 6px track: (28 - 6) / 2 */
+  }
+
+  /* Larger checkbox hit area */
+  #settings-panel .checkbox-label input[type="checkbox"] {
+    width: 28px;
+    height: 28px;
+  }
+
+  #settings-panel .checkbox-label {
+    min-height: 44px;
+    padding: 0.25rem 0.2rem;
+  }
+
+}
+
+/* Animations */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.playing #playBtn {
+  animation: pulse 1.5s ease-in-out infinite;
+}
