@@ -77,7 +77,8 @@ body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
-  transition: opacity 800ms ease;
+  /* Keep in sync with SCREENSHOW_FADE_MS in src/app/screenshow/controller.js */
+  transition: opacity 900ms ease;
   will-change: opacity;
 }
 

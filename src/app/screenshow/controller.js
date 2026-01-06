@@ -335,9 +335,13 @@ export class ScreenShowController {
     const nowMs = ts != null ? ts : (performance && performance.now ? performance.now() : Date.now());
     const tRaw = (nowMs - pass.startMs) / Math.max(1, pass.durationMs);
     if (tRaw >= 1.0) {
-      // End the pass and start a new one.
-      this._dimCanvas();
-      this.startPass(false);
+      // End the current pass.
+      //
+      // Important: use the same "fade-out -> teleport -> fade-in" sequence we use when
+      // starting Screen show from Run mode (startFromRun()). Starting the next pass
+      // immediately (teleport + undim) can expose the next scene for a single frame
+      // before the dim-out CSS transition kicks in, which appears as a flash.
+      this.startFromRun();
       return true;
     }
 
