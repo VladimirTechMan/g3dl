@@ -39,6 +39,14 @@ export class OrbitControls {
     // Pointer state (unified input for mouse/touch/pen when Pointer Events are available)
     this._activePointers = new Map(); // pointerId -> { x, y, type }
 
+    // Stable pinch pair tracking.
+    // When 3+ pointers are active (e.g., accidental palm contact), always keep
+    // using the same two pointerIds for pinch until one of them lifts. This
+    // improves gesture stability and avoids sudden center/distance jumps that
+    // can occur if we always pick the first two pointers from the Map.
+    this._pinchId0 = null;
+    this._pinchId1 = null;
+
     // Cursor cache (avoid redundant style writes during high-frequency move events)
     this._cursor = "";
 
@@ -81,6 +89,8 @@ export class OrbitControls {
     this._isDragging = false;
     this._isPanning = false;
     this._lastPinchDistance = 0;
+    this._pinchId0 = null;
+    this._pinchId1 = null;
     this._setCursor("");
   }
 
@@ -91,6 +101,8 @@ export class OrbitControls {
       } catch (_) {}
     }
     this._activePointers.clear();
+    this._pinchId0 = null;
+    this._pinchId1 = null;
   }
 
   /**
@@ -103,6 +115,65 @@ export class OrbitControls {
     if (this._cursor === cursor) return;
     this._cursor = cursor;
     this.canvas.style.cursor = cursor;
+  }
+
+  /**
+   * Ensure a stable pinch pair is selected when 2+ pointers are active.
+   *
+   * When the pair changes (e.g., one of the pinch fingers lifts and we fall back
+   * to a remaining pointer + another active pointer), we also reset the gesture
+   * baseline (center + distance) to avoid sudden jumps.
+   *
+   * @param {number|null} [preferId] If provided and present, this id will be used as the first pinch pointer.
+   * @returns {boolean} true if a valid pair is available
+   */
+  _recomputePinchPair(preferId = null) {
+    if (this._activePointers.size < 2) {
+      this._pinchId0 = null;
+      this._pinchId1 = null;
+      return false;
+    }
+
+    /** @type {number|null} */
+    let id0 =
+      preferId != null && this._activePointers.has(preferId) ? preferId : null;
+    /** @type {number|null} */
+    let id1 = null;
+
+    for (const id of this._activePointers.keys()) {
+      if (id === id0) continue;
+      if (id0 == null) {
+        id0 = id;
+        continue;
+      }
+      id1 = id;
+      break;
+    }
+
+    if (id0 == null || id1 == null) {
+      this._pinchId0 = null;
+      this._pinchId1 = null;
+      return false;
+    }
+
+    this._pinchId0 = id0;
+    this._pinchId1 = id1;
+
+    const p0 = this._activePointers.get(id0);
+    const p1 = this._activePointers.get(id1);
+    if (!p0 || !p1) {
+      this._pinchId0 = null;
+      this._pinchId1 = null;
+      return false;
+    }
+
+    const cx = (p0.x + p1.x) / 2;
+    const cy = (p0.y + p1.y) / 2;
+    this._lastMouseX = cx;
+    this._lastMouseY = cy;
+    this._lastPinchDistance = Math.hypot(p0.x - p1.x, p0.y - p1.y);
+
+    return true;
   }
 
   _on(el, type, fn, opts) {
@@ -174,6 +245,8 @@ export class OrbitControls {
       return;
     }
 
+    const prevPointerCount = this._activePointers.size;
+
     this._activePointers.set(e.pointerId, {
       x: e.clientX,
       y: e.clientY,
@@ -189,24 +262,28 @@ export class OrbitControls {
     this._lastMoveTime = 0;
 
     if (this._activePointers.size >= 2) {
-      // Two-finger (or multi-pointer) pan + pinch zoom
-      // Avoid per-event allocations (Array.from + per-move object literals).
-      const it = this._activePointers.values();
-      const p0 = it.next().value;
-      const p1 = it.next().value;
-      if (!p0 || !p1) return;
+      // Two-finger (or multi-pointer) pan + pinch zoom.
+      // Only (re)initialize the pinch baseline when entering multi-pointer mode
+      // or when the current tracked pair is invalid.
+      const enteringMulti = prevPointerCount < 2;
 
-      const cx = (p0.x + p1.x) / 2;
-      const cy = (p0.y + p1.y) / 2;
+      const pinchValid =
+        this._pinchId0 != null &&
+        this._pinchId1 != null &&
+        this._activePointers.has(this._pinchId0) &&
+        this._activePointers.has(this._pinchId1);
 
-      this._lastMouseX = cx;
-      this._lastMouseY = cy;
+      if (enteringMulti || !pinchValid) {
+        if (!this._recomputePinchPair()) return;
+      }
 
-      this._lastPinchDistance = Math.hypot(p0.x - p1.x, p0.y - p1.y);
       this._isDragging = true;
       this._isPanning = true;
       this._setCursor("move");
     } else {
+      // Single pointer.
+      this._pinchId0 = null;
+      this._pinchId1 = null;
       this._lastMouseX = e.clientX;
       this._lastMouseY = e.clientY;
       this._lastPinchDistance = 0;
@@ -235,11 +312,21 @@ export class OrbitControls {
     p.y = e.clientY;
 
     if (this._activePointers.size >= 2) {
-      // Avoid per-event allocations; only need the first two pointers.
-      const it = this._activePointers.values();
-      const p0 = it.next().value;
-      const p1 = it.next().value;
-      if (!p0 || !p1) return;
+      // Multi-pointer pan + pinch zoom using a stable pinch pair.
+      let p0 =
+        this._pinchId0 != null ? this._activePointers.get(this._pinchId0) : null;
+      let p1 =
+        this._pinchId1 != null ? this._activePointers.get(this._pinchId1) : null;
+
+      if (!p0 || !p1) {
+        // Pair is stale (e.g., one finger lifted but another is still down).
+        // Prefer the currently moving pointer as part of the new pair to
+        // minimize perceived discontinuity.
+        if (!this._recomputePinchPair(e.pointerId)) return;
+        p0 = this._activePointers.get(this._pinchId0);
+        p1 = this._activePointers.get(this._pinchId1);
+        if (!p0 || !p1) return;
+      }
 
       const cx = (p0.x + p1.x) / 2;
       const cy = (p0.y + p1.y) / 2;
@@ -261,6 +348,15 @@ export class OrbitControls {
       this._lastMouseY = cy;
       this._setCursor("move");
     } else {
+      // Safety: if we fell back to a single pointer, clear any pinch state and
+      // reset the baseline to avoid a large dx/dy jump.
+      if (this._pinchId0 != null || this._pinchId1 != null) {
+        this._pinchId0 = null;
+        this._pinchId1 = null;
+        this._lastPinchDistance = 0;
+        this._lastMouseX = e.clientX;
+        this._lastMouseY = e.clientY;
+      }
       const dx = e.clientX - this._lastMouseX;
       const dy = e.clientY - this._lastMouseY;
 
@@ -300,7 +396,53 @@ export class OrbitControls {
     }
 
     if (!this.renderer) return;
+
+    const wasPinchId0 = e.pointerId === this._pinchId0;
+    const wasPinchId1 = e.pointerId === this._pinchId1;
+    const preferId =
+      wasPinchId0 && this._pinchId1 != null
+        ? this._pinchId1
+        : wasPinchId1 && this._pinchId0 != null
+          ? this._pinchId0
+          : null;
+
     this._activePointers.delete(e.pointerId);
+
+    // Gesture transitions:
+    // - 2+ -> 1: reset baseline to remaining pointer to avoid a large dx/dy jump
+    // - 3+ with a pinch finger lifted: re-pick a stable pinch pair and reset baseline
+    if (this._activePointers.size >= 2) {
+      const pinchValid =
+        this._pinchId0 != null &&
+        this._pinchId1 != null &&
+        this._activePointers.has(this._pinchId0) &&
+        this._activePointers.has(this._pinchId1);
+
+      if (!pinchValid || wasPinchId0 || wasPinchId1) {
+        // Prefer keeping the remaining finger from the previous pinch pair.
+        this._recomputePinchPair(
+          preferId != null && this._activePointers.has(preferId) ? preferId : null,
+        );
+      }
+
+      this._isDragging = true;
+      this._isPanning = true;
+      this._setCursor("move");
+    } else if (this._activePointers.size === 1) {
+      // Fall back to single-pointer rotation.
+      this._pinchId0 = null;
+      this._pinchId1 = null;
+      this._lastPinchDistance = 0;
+      const it = this._activePointers.values();
+      const p0 = it.next().value;
+      if (p0) {
+        this._lastMouseX = p0.x;
+        this._lastMouseY = p0.y;
+      }
+      this._isDragging = true;
+      this._isPanning = false;
+      this._setCursor("grabbing");
+    }
 
     // When last pointer lifts, stop dragging and apply inertia conditions
     if (this._activePointers.size === 0) {
@@ -314,6 +456,8 @@ export class OrbitControls {
       this._isPanning = false;
       this._setCursor("grab");
       this._lastPinchDistance = 0;
+      this._pinchId0 = null;
+      this._pinchId1 = null;
     }
 
     this.requestRender();
