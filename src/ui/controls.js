@@ -20,71 +20,53 @@ export function bindControls(dom, handlers) {
     unsubs.push(on(el, type, fn, opts));
   };
 
-  const {
-    stepBtn,
-    playBtn,
-    resetBtn,
-    fullscreenBtn,
-    speedSlider,
-    sizeInput,
-    initSizeInput,
-    densitySlider,
-    cellColorPicker,
-    cellColorPicker2,
-    bgColorPicker,
-    bgColorPicker2,
-    presetSelect,
-    surviveInput,
-    birthInput,
-    toroidalCheckbox,
-    stableStopCheckbox,
-    lanternCheckbox,
-    screenShowCheckbox,
-    gridProjectionCheckbox,
-    copyUrlBtn,
-  } = dom;
+  // Prefer a single access path for cached elements.
+  // This avoids repeating long destructuring lists (and reduces drift risk when the UI evolves).
+  const d = dom;
 
   // Control buttons
-  add(stepBtn, "click", handlers.step);
-  add(playBtn, "click", handlers.togglePlay);
-  add(resetBtn, "click", handlers.reset);
-  add(fullscreenBtn, "click", handlers.toggleFullscreen);
+  add(d.stepBtn, "click", handlers.step);
+  add(d.playBtn, "click", handlers.togglePlay);
+  add(d.resetBtn, "click", handlers.reset);
+  add(d.fullscreenBtn, "click", handlers.toggleFullscreen);
 
   // Sliders and inputs
-  add(speedSlider, "input", handlers.handleSpeedPreview);
-  add(speedSlider, "change", handlers.handleSpeedChange);
+  add(d.speedSlider, "input", handlers.handleSpeedPreview);
+  add(d.speedSlider, "change", handlers.handleSpeedChange);
 
-  add(sizeInput, "change", handlers.handleSizeChange);
-  add(sizeInput, "input", handlers.validateSizeInput);
-  add(sizeInput, "keydown", handlers.handleSizeKeydown);
+  add(d.sizeInput, "change", handlers.handleSizeChange);
+  add(d.sizeInput, "input", handlers.validateSizeInput);
+  add(d.sizeInput, "keydown", handlers.handleSizeKeydown);
 
-  add(initSizeInput, "change", handlers.handleInitSizeChange);
-  add(initSizeInput, "input", handlers.validateInitSizeInput);
-  add(initSizeInput, "keydown", handlers.handleInitSizeKeydown);
+  add(d.initSizeInput, "change", handlers.handleInitSizeChange);
+  add(d.initSizeInput, "input", handlers.validateInitSizeInput);
+  add(d.initSizeInput, "keydown", handlers.handleInitSizeKeydown);
 
-  add(densitySlider, "input", handlers.handleDensityPreview);
-  add(densitySlider, "change", handlers.handleDensityChange);
+  add(d.densitySlider, "input", handlers.handleDensityPreview);
+  add(d.densitySlider, "change", handlers.handleDensityChange);
 
-  add(cellColorPicker, "input", handlers.handleCellColorChange);
-  add(cellColorPicker2, "input", handlers.handleCellColorChange);
-  add(bgColorPicker, "input", handlers.handleBgColorChange);
-  add(bgColorPicker2, "input", handlers.handleBgColorChange);
+  add(d.cellColorPicker, "input", handlers.handleCellColorChange);
+  add(d.cellColorPicker2, "input", handlers.handleCellColorChange);
+  add(d.bgColorPicker, "input", handlers.handleBgColorChange);
+  add(d.bgColorPicker2, "input", handlers.handleBgColorChange);
 
   // Game rule preset and rule inputs
-  add(presetSelect, "change", handlers.handlePresetChange);
-  add(surviveInput, "input", handlers.handleRuleInputChange);
-  add(birthInput, "input", handlers.handleRuleInputChange);
-  add(surviveInput, "keydown", handlers.handleRuleKeydown);
-  add(birthInput, "keydown", handlers.handleRuleKeydown);
+  add(d.presetSelect, "change", handlers.handlePresetChange);
+  add(d.surviveInput, "input", handlers.handleRuleInputChange);
+  add(d.birthInput, "input", handlers.handleRuleInputChange);
+  add(d.surviveInput, "keydown", handlers.handleRuleKeydown);
+  add(d.birthInput, "keydown", handlers.handleRuleKeydown);
 
   // Toggles
-  add(toroidalCheckbox, "change", handlers.handleToroidalChange);
-  add(stableStopCheckbox, "change", handlers.handleStableStopChange);
-  add(lanternCheckbox, "change", handlers.handleLanternChange);
-  add(screenShowCheckbox, "change", handlers.handleScreenShowChange);
-  add(gridProjectionCheckbox, "change", handlers.handleGridProjectionChange);
+  add(d.toroidalCheckbox, "change", handlers.handleToroidalChange);
+  add(d.stableStopCheckbox, "change", handlers.handleStableStopChange);
+  add(d.lanternCheckbox, "change", handlers.handleLanternChange);
+  add(d.screenShowCheckbox, "change", handlers.handleScreenShowChange);
+  add(d.gridProjectionCheckbox, "change", handlers.handleGridProjectionChange);
 
-  if (copyUrlBtn) add(copyUrlBtn, "click", () => handlers.handleCopyUrlButton());
+  if (d.copyUrlBtn) {
+    add(d.copyUrlBtn, "click", () => handlers.handleCopyUrlButton());
+  }
 
   // Keyboard shortcuts
   add(document, "keydown", handlers.handleKeyDown);

@@ -1263,8 +1263,12 @@ function handleKeyDown(e) {
       toggleFullscreen();
       break;
     case "c":
+      if (screenShow && screenShow.isNavLocked()) break;
       e.preventDefault();
       renderer.resetPan();
+      // If the simulation is paused and no other animation is active,
+      // explicitly request a redraw so the user sees the centering immediately.
+      requestRender(true);
       break;
     case "b":
       if (screenShow && screenShow.isNavLocked()) break;
