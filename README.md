@@ -37,7 +37,7 @@ UI:
 - `src/ui/panels.js` - Settings/Help/About panel UX + wheel capture policy
 
 Input:
-- `src/app/orbitControls.js` - Pointer/touch/mouse navigation state machine
+- `src/app/orbitControls.js` - Pointer Events (mouse/touch/pen) navigation state machine
 
 GPU contracts:
 - `src/gpu/dataLayout.js` - Single source of truth for JS <-> WGSL buffer/uniform layouts

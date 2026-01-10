@@ -33,10 +33,10 @@ export class OrbitControls {
     this._lastMouseY = 0;
     this._lastMoveTime = 0;
 
-    // Touch/pinch state
+    // Pinch (multi-pointer) state
     this._lastPinchDistance = 0;
 
-    // Touch gesture guard:
+    // Multi-pointer gesture guard:
     // After a multi-touch gesture (2+ pointers), some mobile browsers will
     // transiently leave one pointer active while the user is lifting fingers.
     // Any slight motion during that transition can be misinterpreted as a
@@ -200,40 +200,26 @@ export class OrbitControls {
 
     if (!canvas) return;
 
-    if (window.PointerEvent) {
-      this._on(canvas, "pointerdown", (e) => this._handlePointerDown(e), {
-        passive: false,
-      });
-      this._on(canvas, "pointermove", (e) => this._handlePointerMove(e), {
-        passive: false,
-      });
-      this._on(canvas, "pointerup", (e) => this._handlePointerUp(e), {
-        passive: false,
-      });
-      this._on(canvas, "pointercancel", (e) => this._handlePointerUp(e), {
-        passive: false,
-      });
-      this._on(canvas, "contextmenu", (e) => e.preventDefault());
-    } else {
-      // Mouse controls for rotation
-      this._on(canvas, "mousedown", (e) => this._handleMouseDown(e));
-      this._on(document, "mousemove", (e) => this._handleMouseMove(e));
-      this._on(document, "mouseup", (e) => this._handleMouseUp(e));
-
-      // Touch controls
-      this._on(canvas, "touchstart", (e) => this._handleTouchStart(e), {
-        passive: false,
-      });
-      this._on(canvas, "touchmove", (e) => this._handleTouchMove(e), {
-        passive: false,
-      });
-      this._on(canvas, "touchend", (e) => this._handleTouchEnd(e), {
-        passive: false,
-      });
-      this._on(canvas, "touchcancel", (e) => this._handleTouchEnd(e), {
-        passive: false,
-      });
+    // This app targets modern WebGPU-capable browsers; Pointer Events are required
+    // for consistent input across mouse, touch, and pen.
+    if (!window.PointerEvent) {
+      // We intentionally do not provide a legacy Touch Events fallback.
+      console.warn("Pointer Events are required for interaction in this app.");
     }
+
+    this._on(canvas, "pointerdown", (e) => this._handlePointerDown(e), {
+      passive: false,
+    });
+    this._on(canvas, "pointermove", (e) => this._handlePointerMove(e), {
+      passive: false,
+    });
+    this._on(canvas, "pointerup", (e) => this._handlePointerUp(e), {
+      passive: false,
+    });
+    this._on(canvas, "pointercancel", (e) => this._handlePointerUp(e), {
+      passive: false,
+    });
+    this._on(canvas, "contextmenu", (e) => e.preventDefault());
 
     // Mouse wheel zoom
     this._on(canvas, "wheel", (e) => this._handleWheel(e), { passive: false });
@@ -506,46 +492,6 @@ export class OrbitControls {
 
   // Fallback mouse/touch handlers (used only if Pointer Events are not available)
 
-  _handleMouseDown(e) {
-    if (this.isNavLocked()) return;
-
-    this.renderer.stopInertia();
-    this._isDragging = true;
-    this._isPanning = e.shiftKey;
-    this._lastMouseX = e.clientX;
-    this._lastMouseY = e.clientY;
-    this._setCursor(this._isPanning ? "move" : "grabbing");
-    this.requestRender();
-  }
-
-  _handleMouseMove(e) {
-    if (this.isNavLocked()) return;
-    if (!this._isDragging) return;
-
-    const dx = e.clientX - this._lastMouseX;
-    const dy = e.clientY - this._lastMouseY;
-
-    if (this._isPanning) {
-      this.renderer.pan(dx, dy);
-    } else {
-      this.renderer.rotate(dx, dy);
-    }
-
-    this._lastMouseX = e.clientX;
-    this._lastMouseY = e.clientY;
-    this._lastMoveTime = performance.now();
-    this.requestRender();
-  }
-
-  _handleMouseUp(_e) {
-    if (this.isNavLocked()) return;
-    const now = performance.now();
-    const timeSinceMove = now - this._lastMoveTime;
-    if (timeSinceMove > 50) this.renderer.stopInertia();
-    this._isDragging = false;
-    this._isPanning = false;
-    this._setCursor("grab");
-  }
 
   _getTouchDistance(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
@@ -553,105 +499,6 @@ export class OrbitControls {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  _handleTouchStart(e) {
-    if (this.isNavLocked()) {
-      e.preventDefault();
-      return;
-    }
-    this.renderer.stopInertia();
-
-    if (e.touches.length === 1) {
-      // Fresh single-touch gesture; re-arm touch rotation.
-      this._suppressTouchRotateUntilRelease = false;
-      this._isDragging = true;
-      this._isPanning = false;
-      this._lastMouseX = e.touches[0].clientX;
-      this._lastMouseY = e.touches[0].clientY;
-      this._lastPinchDistance = 0;
-      this.requestRender(true);
-    } else if (e.touches.length === 2) {
-      // Multi-touch gesture; allow pinch/pan.
-      this._suppressTouchRotateUntilRelease = false;
-      this._isDragging = true;
-      this._isPanning = true;
-      this._lastMouseX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      this._lastMouseY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      this._lastPinchDistance = this._getTouchDistance(e.touches);
-      this.requestRender(true);
-    }
-    e.preventDefault();
-  }
-
-  _handleTouchMove(e) {
-    if (this.isNavLocked()) {
-      e.preventDefault();
-      return;
-    }
-    if (!this._isDragging) return;
-
-    if (e.touches.length === 1) {
-      if (this._suppressTouchRotateUntilRelease) {
-        // See pointer-events path: avoid "snap rotate" after multi-touch.
-        this._lastMouseX = e.touches[0].clientX;
-        this._lastMouseY = e.touches[0].clientY;
-        e.preventDefault();
-        return;
-      }
-      const dx = e.touches[0].clientX - this._lastMouseX;
-      const dy = e.touches[0].clientY - this._lastMouseY;
-      this.renderer.rotate(dx, dy);
-      this._lastMouseX = e.touches[0].clientX;
-      this._lastMouseY = e.touches[0].clientY;
-    } else if (e.touches.length === 2) {
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
-      const dx = cx - this._lastMouseX;
-      const dy = cy - this._lastMouseY;
-      this.renderer.pan(dx, dy);
-
-      const dist = this._getTouchDistance(e.touches);
-      if (this._lastPinchDistance > 0) {
-        const pinchDelta = this._lastPinchDistance - dist;
-        this.renderer.zoomCamera(pinchDelta * 2);
-      }
-      this._lastPinchDistance = dist;
-      this._lastMouseX = cx;
-      this._lastMouseY = cy;
-    }
-
-    this._lastMoveTime = performance.now();
-    this.requestRender(true);
-    e.preventDefault();
-  }
-
-  _handleTouchEnd(e) {
-    if (this.isNavLocked()) {
-      e.preventDefault();
-      return;
-    }
-    if (e.touches.length === 1 && this._lastPinchDistance > 0) {
-      // Transition 2 -> 1: suppress rotation until the remaining finger lifts.
-      this._suppressTouchRotateUntilRelease = true;
-      this._lastPinchDistance = 0;
-      this._isPanning = false;
-      this._lastMouseX = e.touches[0].clientX;
-      this._lastMouseY = e.touches[0].clientY;
-    }
-
-    if (e.touches.length === 0) {
-      const now = performance.now();
-      const timeSinceMove = now - this._lastMoveTime;
-      if (timeSinceMove > 50) this.renderer.stopInertia();
-      this._isDragging = false;
-      this._isPanning = false;
-      this._lastPinchDistance = 0;
-      this._suppressTouchRotateUntilRelease = false;
-      this._setCursor("grab");
-      this.requestRender(true);
-    }
-    e.preventDefault();
-  }
 
   _handleWheel(e) {
     if (this.isNavLocked()) {
