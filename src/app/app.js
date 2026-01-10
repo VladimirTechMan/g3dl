@@ -707,11 +707,10 @@ function validateRuleInput(input) {
 
   // Update visual feedback:
   // - Blank input is treated as "not applied" but not visually invalid.
-  if (isValid || parsed.sanitized.trim() === "") {
-    input.parentElement.classList.remove("invalid");
-  } else {
-    input.parentElement.classList.add("invalid");
-  }
+  setInvalid(
+    input.parentElement,
+    !(isValid || parsed.sanitized.trim() === "")
+  );
 
   return isValid;
 }
@@ -725,8 +724,8 @@ function handlePresetChange() {
   if (preset !== "custom" && presets[preset]) {
     surviveInput.value = presets[preset].survive;
     birthInput.value = presets[preset].birth;
-    surviveInput.parentElement.classList.remove("invalid");
-    birthInput.parentElement.classList.remove("invalid");
+    setInvalid(surviveInput.parentElement, false);
+    setInvalid(birthInput.parentElement, false);
     parseRules();
 
     // The game rule preset itself is not stored in the URL, but Survival/Birth are.
@@ -924,12 +923,12 @@ async function handleSizeChange() {
   }
 
   sizeInput.value = value;
-  wrapper.classList.remove("invalid");
+  setInvalid(wrapper, false);
 
   if (state.settings.initSize > value) {
     state.settings.initSize = value;
     initSizeInput.value = state.settings.initSize;
-    initSizeInput.parentElement.classList.remove("invalid");
+    setInvalid(initSizeInput.parentElement, false);
   }
 
   // Only apply changes if simulation is not running
@@ -959,6 +958,27 @@ async function handleSizeChange() {
 }
 
 /**
+ * Toggle invalid UI state on an input wrapper.
+ * @param {HTMLElement | null} wrapper
+ * @param {boolean} isInvalid
+ */
+function setInvalid(wrapper, isInvalid) {
+  if (!wrapper) return;
+  wrapper.classList.toggle("invalid", isInvalid);
+}
+
+/**
+ * Handle Enter key on an input by blurring it, which triggers 'change' handlers.
+ * @param {KeyboardEvent} e
+ * @param {HTMLInputElement} input
+ */
+function blurOnEnter(e, input) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  input.blur();
+}
+
+/**
  * Validate size input
  */
 function validateSizeInput() {
@@ -969,22 +989,15 @@ function validateSizeInput() {
     renderer && typeof renderer.getMaxSupportedGridSize === "function"
       ? renderer.getMaxSupportedGridSize()
       : 256;
-  if (isNaN(value) || value < 4 || value > max) {
-    wrapper.classList.add("invalid");
-  } else {
-    wrapper.classList.remove("invalid");
-  }
+
+  setInvalid(wrapper, isNaN(value) || value < 4 || value > max);
 }
 
 /**
  * Handle Enter key on grid size input
  */
 function handleSizeKeydown(e) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    // Apply via the 'change' event that fires on blur
-    sizeInput.blur();
-  }
+  blurOnEnter(e, sizeInput);
 }
 
 /**
@@ -1001,7 +1014,7 @@ async function handleInitSizeChange() {
   }
 
   initSizeInput.value = value;
-  wrapper.classList.remove("invalid");
+  setInvalid(wrapper, false);
   state.settings.initSize = value;
 
   // Apply immediately when simulation is not running (on blur/change as well as Enter).
@@ -1025,22 +1038,14 @@ function validateInitSizeInput() {
   const value = parseInt(initSizeInput.value, 10);
   const wrapper = initSizeInput.parentElement;
 
-  if (isNaN(value) || value < 2 || value > state.settings.gridSize) {
-    wrapper.classList.add("invalid");
-  } else {
-    wrapper.classList.remove("invalid");
-  }
+  setInvalid(wrapper, isNaN(value) || value < 2 || value > state.settings.gridSize);
 }
 
 /**
  * Handle Enter key on initial size input
  */
 function handleInitSizeKeydown(e) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    // Apply via the 'change' event that fires on blur
-    initSizeInput.blur();
-  }
+  blurOnEnter(e, initSizeInput);
 }
 
 /**

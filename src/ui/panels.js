@@ -43,6 +43,91 @@ export function createPanelManager(dom, handlers) {
   // No blocking overlay: keep the UI responsive while allowing canvas interaction.
   // We only capture wheel events to prevent page scroll and optionally route zoom to the scene.
   let panelsWheelCaptureInstalled = false;
+  const PANEL_SCROLL_SELECTOR = "#settings-panel, #help-panel, #perf-panel";
+
+  const PANELS = [
+    {
+      key: "settings",
+      panelEl: settingsPanel,
+      btnEl: settingsBtn,
+      isOpen: () =>
+        !!settingsPanel && !settingsPanel.classList.contains("hidden"),
+      open: () => {
+        if (!settingsPanel || !settingsBtn) return;
+        settingsPanel.classList.remove("hidden");
+        settingsBtn.classList.add("active");
+      },
+      close: () => {
+        if (settingsPanel) settingsPanel.classList.add("hidden");
+        if (settingsBtn) settingsBtn.classList.remove("active");
+      },
+    },
+    {
+      key: "help",
+      panelEl: helpPanel,
+      btnEl: helpBtn,
+      isOpen: () => !!helpPanel && !helpPanel.classList.contains("hidden"),
+      open: () => {
+        if (!helpPanel || !helpBtn) return;
+        helpPanel.classList.remove("hidden");
+        helpBtn.classList.add("active");
+      },
+      close: () => {
+        if (helpPanel) helpPanel.classList.add("hidden");
+        if (helpBtn) helpBtn.classList.remove("active");
+      },
+    },
+    {
+      key: "perf",
+      panelEl: perfPanel,
+      btnEl: perfBtn,
+      isOpen: () => !!perfPanel && !perfPanel.classList.contains("hidden"),
+      open: () => {
+        if (!perfPanel || !perfBtn) return;
+        perfPanel.classList.remove("hidden");
+        perfBtn.classList.add("active");
+      },
+      close: () => {
+        if (perfPanel) perfPanel.classList.add("hidden");
+        if (perfBtn) perfBtn.classList.remove("active");
+      },
+    },
+    {
+      key: "about",
+      panelEl: header,
+      btnEl: infoBtn,
+      isOpen: () => !!header && header.classList.contains("visible"),
+      open: () => {
+        if (!header || !infoBtn) return;
+        header.classList.add("visible");
+        infoBtn.classList.add("active");
+      },
+      close: () => {
+        if (header) header.classList.remove("visible");
+        if (infoBtn) infoBtn.classList.remove("active");
+      },
+    },
+  ];
+
+  /** @type {Record<string, any>} */
+  const PANELS_BY_KEY = Object.create(null);
+  for (const p of PANELS) PANELS_BY_KEY[p.key] = p;
+
+  /**
+   * Toggle a named panel and ensure overlay capture policies stay in sync.
+   * @param {"settings"|"help"|"perf"|"about"} key
+   */
+  function togglePanel(key) {
+    const p = PANELS_BY_KEY[key];
+    if (!p || !p.panelEl || !p.btnEl) return;
+    const shouldOpen = !p.isOpen();
+    closeAllPanels();
+    if (shouldOpen) {
+      p.open();
+      updateOverlay();
+    }
+  }
+
 
   function blurActiveElement() {
     const ae = document.activeElement;
@@ -55,7 +140,7 @@ export function createPanelManager(dom, handlers) {
     const target = /** @type {any} */ (e.target);
     if (target && target.closest) {
       const insidePanel =
-        target.closest("#settings-panel, #help-panel, #perf-panel") != null;
+        target.closest(PANEL_SCROLL_SELECTOR) != null;
       if (insidePanel) return;
     }
 
@@ -86,10 +171,9 @@ export function createPanelManager(dom, handlers) {
   }
 
   function isAnyPanelOpen() {
-    if (header && header.classList.contains("visible")) return true;
-    if (settingsPanel && !settingsPanel.classList.contains("hidden")) return true;
-    if (helpPanel && !helpPanel.classList.contains("hidden")) return true;
-    if (perfPanel && !perfPanel.classList.contains("hidden")) return true;
+    for (const p of PANELS) {
+      if (p.isOpen()) return true;
+    }
     return false;
   }
 
@@ -99,75 +183,36 @@ export function createPanelManager(dom, handlers) {
   }
 
   function closeAllPanels() {
-    if (settingsPanel) settingsPanel.classList.add("hidden");
-    if (settingsBtn) settingsBtn.classList.remove("active");
-
-    if (helpPanel) helpPanel.classList.add("hidden");
-    if (helpBtn) helpBtn.classList.remove("active");
-
-    if (perfPanel) perfPanel.classList.add("hidden");
-    if (perfBtn) perfBtn.classList.remove("active");
-
-    if (header) header.classList.remove("visible");
-    if (infoBtn) infoBtn.classList.remove("active");
+    for (const p of PANELS) {
+      p.close();
+    }
 
     blurActiveElement();
     updateOverlay();
   }
 
   function closeSettingsAndHelpPanels() {
-    if (settingsPanel) settingsPanel.classList.add("hidden");
-    if (settingsBtn) settingsBtn.classList.remove("active");
-
-    if (helpPanel) helpPanel.classList.add("hidden");
-    if (helpBtn) helpBtn.classList.remove("active");
+    PANELS_BY_KEY.settings?.close();
+    PANELS_BY_KEY.help?.close();
 
     blurActiveElement();
     updateOverlay();
   }
 
   function toggleSettingsPanel() {
-    if (!settingsPanel || !settingsBtn) return;
-    const shouldOpen = settingsPanel.classList.contains("hidden");
-    closeAllPanels();
-    if (shouldOpen) {
-      settingsPanel.classList.remove("hidden");
-      settingsBtn.classList.add("active");
-      updateOverlay();
-    }
+    togglePanel("settings");
   }
 
   function toggleHelpPanel() {
-    if (!helpPanel || !helpBtn) return;
-    const shouldOpen = helpPanel.classList.contains("hidden");
-    closeAllPanels();
-    if (shouldOpen) {
-      helpPanel.classList.remove("hidden");
-      helpBtn.classList.add("active");
-      updateOverlay();
-    }
+    togglePanel("help");
   }
 
   function togglePerfPanel() {
-    if (!perfPanel || !perfBtn) return;
-    const shouldOpen = perfPanel.classList.contains("hidden");
-    closeAllPanels();
-    if (shouldOpen) {
-      perfPanel.classList.remove("hidden");
-      perfBtn.classList.add("active");
-      updateOverlay();
-    }
+    togglePanel("perf");
   }
 
   function toggleAboutPanel() {
-    if (!header || !infoBtn) return;
-    const shouldOpen = !header.classList.contains("visible");
-    closeAllPanels();
-    if (shouldOpen) {
-      header.classList.add("visible");
-      infoBtn.classList.add("active");
-      updateOverlay();
-    }
+    togglePanel("about");
   }
 
   // Wire panel buttons
@@ -213,15 +258,15 @@ export function createPanelManager(dom, handlers) {
   // On touch devices this makes the panel easy to dismiss without hunting for the toggle.
   const controlsRoot = controls;
   const closeAboutFromGlobalTap = (e) => {
-    if (!header || !infoBtn) return;
-    if (!header.classList.contains("visible")) return;
+    const about = PANELS_BY_KEY.about;
+    if (!about || !about.panelEl || !about.btnEl) return;
+    if (!about.isOpen()) return;
 
     // Let the info button toggle in its own handler.
-    if (e.target === infoBtn || infoBtn.contains(e.target)) return;
+    if (infoBtn && (e.target === infoBtn || infoBtn.contains(e.target))) return;
 
     // Dismiss About
-    header.classList.remove("visible");
-    infoBtn.classList.remove("active");
+    about.close();
     blurActiveElement();
     updateOverlay();
 

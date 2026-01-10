@@ -186,6 +186,14 @@ body {
   padding-left: var(--controls-edge-pad);
   padding-right: calc(var(--controls-edge-pad) + 6px);
 
+  --panel-scrollbar-width: 10px;
+  --panel-scrollbar-track-bg: rgba(255, 255, 255, 0.06);
+  --panel-scrollbar-track-radius: 10px;
+  --panel-scrollbar-thumb-bg: rgba(74, 158, 255, 0.55);
+  --panel-scrollbar-thumb-radius: 10px;
+  --panel-scrollbar-thumb-border: 2px solid rgba(18, 18, 26, 0.7);
+  --panel-scrollbar-thumb-hover-bg: rgba(74, 158, 255, 0.75);
+
   scrollbar-width: thin;
   scrollbar-color: rgba(74, 158, 255, 0.65) rgba(255, 255, 255, 0.06);
 
@@ -196,6 +204,11 @@ body {
 
 #settings-panel {
   align-items: stretch;
+
+  --panel-scrollbar-track-radius: 8px;
+  --panel-scrollbar-thumb-bg: rgba(74, 158, 255, 0.65);
+  --panel-scrollbar-thumb-radius: 8px;
+  --panel-scrollbar-thumb-border: none;
 }
 
 .hidden {
@@ -208,32 +221,24 @@ body {
 
 /* Panel scrollbars (WebKit) */
 .panel-body::-webkit-scrollbar {
-  width: 10px;
+  width: var(--panel-scrollbar-width);
 }
 
 .panel-body::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
+  background: var(--panel-scrollbar-track-bg);
+  border-radius: var(--panel-scrollbar-track-radius);
 }
 
-#settings-panel::-webkit-scrollbar-track {
-  border-radius: 8px;
-}
 
 .panel-body::-webkit-scrollbar-thumb {
-  background: rgba(74, 158, 255, 0.55);
-  border-radius: 10px;
-  border: 2px solid rgba(18, 18, 26, 0.7);
+  background: var(--panel-scrollbar-thumb-bg);
+  border-radius: var(--panel-scrollbar-thumb-radius);
+  border: var(--panel-scrollbar-thumb-border);
 }
 
-#settings-panel::-webkit-scrollbar-thumb {
-  background: rgba(74, 158, 255, 0.65);
-  border-radius: 8px;
-  border: none;
-}
 
 .panel-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(74, 158, 255, 0.75);
+  background: var(--panel-scrollbar-thumb-hover-bg);
 }
 
 #settings-panel .control-group {
