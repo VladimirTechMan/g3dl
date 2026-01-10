@@ -58,7 +58,7 @@ export function createReadbackResources(r) {
  * Reset readback timing fields (called after grid resize).
  * @param {import('./renderer.js').WebGPURenderer} r
  */
-export function resetReadbackTiming(r) {
+function resetReadbackTiming(r) {
   // Use -1 to indicate "no valid readback" yet.
   r.statsValidGeneration = -1;
   r.lastReadbackTimeMs = 0;

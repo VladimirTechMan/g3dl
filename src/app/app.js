@@ -219,12 +219,6 @@ function requestRender(immediate = false) {
   loop.requestRender(immediate);
 }
 
-/**
- * Simple async sleep helper
- */
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Stop play mode.
@@ -314,8 +308,8 @@ async function init() {
         },
         onPlayStateChanged: (playing) => {
           state.sim.isPlaying = playing;
-          playIcon.style.display = playing ? "none" : "block";
-          pauseIcon.style.display = playing ? "block" : "none";
+          playIcon.hidden = playing;
+          pauseIcon.hidden = !playing;
           document.body.classList.toggle("playing", playing);
           if (screenShow) screenShow.onPlayStateChanged(playing);
         },
@@ -805,8 +799,8 @@ function getFullscreenElement() {
 
 function updateFullscreenIcons() {
   const fs = !!getFullscreenElement();
-  fullscreenEnterIcon.style.display = fs ? "none" : "block";
-  fullscreenExitIcon.style.display = fs ? "block" : "none";
+  fullscreenEnterIcon.hidden = fs;
+  fullscreenExitIcon.hidden = !fs;
 }
 
 function requestFullscreen(el) {
@@ -1147,23 +1141,6 @@ function handleScreenShowChange() {
  * Build the (inside/boundary/outside) category weights for start-point selection.
  * The target mix is ~60/30/10 when fly-through is plausible, and shifts toward outside views otherwise.
  */
-/**
- * Convert a cell-space AABB (min/max in cell coordinates) into world-space AABB.
- *
- * @param {null|{min:number[],max:number[]}} aabb Cell AABB from requestLivingCellsAABB().
- * @param {number} gs Grid size.
- * @param {number} cs Cell size (world units per cell).
- * @returns {null|{min:number[], max:number[]}}
- */
-function rayCubeMaxT(dx, dy, dz, half) {
-  const ax = Math.abs(dx),
-    ay = Math.abs(dy),
-    az = Math.abs(dz);
-  const tx = ax > 1e-6 ? half / ax : 1e9;
-  const ty = ay > 1e-6 ? half / ay : 1e9;
-  const tz = az > 1e-6 ? half / az : 1e9;
-  return Math.min(tx, ty, tz);
-}
 
 /**
  * Pick a Screen show start eye point in world space.

@@ -67,7 +67,7 @@ export function rotate(r, dx, dy) {
  * @param {number} dx
  * @param {number} dy
  */
-export function applyRotation(r, dx, dy) {
+function applyRotation(r, dx, dy) {
   ensureCameraScratch(r);
 
   const sensitivity = 0.01;
@@ -121,7 +121,7 @@ export function pan(r, dx, dy) {
  * @param {number} dx
  * @param {number} dy
  */
-export function applyPan(r, dx, dy) {
+function applyPan(r, dx, dy) {
   const s = 0.08 * r.cameraDistance;
   r.panX -= dx * s;
   r.panY += dy * s;

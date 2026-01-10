@@ -11,30 +11,6 @@
  * - Quaternions are [x, y, z, w] (length 4).
  */
 
-/**
- * Set `out` to the identity matrix.
- * @param {Float32Array|number[]} out
- * @returns {Float32Array|number[]}
- */
-export function mat4Identity(out) {
-  out[0] = 1;
-  out[1] = 0;
-  out[2] = 0;
-  out[3] = 0;
-  out[4] = 0;
-  out[5] = 1;
-  out[6] = 0;
-  out[7] = 0;
-  out[8] = 0;
-  out[9] = 0;
-  out[10] = 1;
-  out[11] = 0;
-  out[12] = 0;
-  out[13] = 0;
-  out[14] = 0;
-  out[15] = 1;
-  return out;
-}
 
 /**
  * Column-major perspective projection matrix.
@@ -135,30 +111,6 @@ export function mat4LookAt(out, ex, ey, ez, tx, ty, tz, ux, uy, uz) {
   return out;
 }
 
-/**
- * out = a * b (column-major 4x4 matrix multiply).
- * @param {Float32Array|number[]} out
- * @param {Float32Array|number[]} a
- * @param {Float32Array|number[]} b
- * @returns {Float32Array|number[]}
- */
-export function mat4Multiply(out, a, b) {
-  // Preserve the original implementation semantics.
-  for (let i = 0; i < 4; i++) {
-    const ai0 = a[i * 4 + 0];
-    const ai1 = a[i * 4 + 1];
-    const ai2 = a[i * 4 + 2];
-    const ai3 = a[i * 4 + 3];
-    for (let j = 0; j < 4; j++) {
-      out[i * 4 + j] =
-        ai0 * b[j] +
-        ai1 * b[4 + j] +
-        ai2 * b[8 + j] +
-        ai3 * b[12 + j];
-    }
-  }
-  return out;
-}
 
 /**
  * Writes a yaw (around Y) + pitch (around X) quaternion into `out`.

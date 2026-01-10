@@ -14,6 +14,7 @@
   --radius-sm: 6px;
   --radius-lg: 16px;
   --transition-fast: 150ms ease;
+  --screenshow-fade-ms: 900ms;
   /* Controls sizing: keep expanded panels the same width as the top button row */
   --controls-pad-y: 16px;
   --controls-edge-pad: 16px;
@@ -77,8 +78,7 @@ body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
-  /* Keep in sync with SCREENSHOW_FADE_MS in src/app/screenshow/controller.js */
-  transition: opacity 900ms ease;
+  transition: opacity var(--screenshow-fade-ms) ease;
   will-change: opacity;
 }
 
@@ -200,6 +200,10 @@ body {
 
 .hidden {
   display: none;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 /* Panel scrollbars (WebKit) */

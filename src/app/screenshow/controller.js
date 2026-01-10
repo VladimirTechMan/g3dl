@@ -9,7 +9,35 @@
 
 const SCREENSHOW_PASS_MIN_MS = 15000;
 const SCREENSHOW_PASS_MAX_MS = 20000;
-const SCREENSHOW_FADE_MS = 900;
+const SCREENSHOW_FADE_MS = readCssTimeMs("--screenshow-fade-ms", 900);
+
+/**
+ * Read a CSS time custom property (e.g. "900ms" or "0.9s") and return its value in milliseconds.
+ * Falls back to fallbackMs if the property is missing or unparseable.
+ *
+ * @param {string} varName
+ * @param {number} fallbackMs
+ * @returns {number}
+ */
+function readCssTimeMs(varName, fallbackMs) {
+  // Computed style is used so values set via external stylesheets are visible.
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue(varName)
+    .trim();
+  if (!raw) return fallbackMs;
+
+  // Normalize to milliseconds.
+  if (raw.endsWith("ms")) {
+    const v = Number.parseFloat(raw.slice(0, -2));
+    return Number.isFinite(v) ? v : fallbackMs;
+  }
+  if (raw.endsWith("s")) {
+    const v = Number.parseFloat(raw.slice(0, -1));
+    return Number.isFinite(v) ? v * 1000 : fallbackMs;
+  }
+  const v = Number.parseFloat(raw);
+  return Number.isFinite(v) ? v : fallbackMs;
+}
 const SCREENSHOW_AABB_REQUEST_MIN_INTERVAL_MS = 1200;
 
 /**
@@ -562,23 +590,6 @@ function cellsAabbToWorldAabb(aabb, gs, cs) {
   };
 }
 
-function screenShowStartWeights(flyThroughFactor) {
-  const f = clamp(flyThroughFactor, 0, 1);
-
-  // Fly-through-friendly weights (inside / boundary / outside).
-  const flyInside = 0.6,
-    flyBoundary = 0.3;
-
-  // Dense/large-cluster weights: avoid inside, mostly outside.
-  const noInside = 0.0,
-    noBoundary = 0.25;
-
-  const inside = lerp(noInside, flyInside, f);
-  const boundary = lerp(noBoundary, flyBoundary, f);
-  const outside = Math.max(0, 1.0 - inside - boundary);
-
-  return { inside, boundary, outside };
-}
 
 function screenShowFlyThroughFactor(density, focusRadius, cubeHalf) {
   const d = clamp(density, 0, 1);

@@ -24,7 +24,7 @@ export const RULE_PRESETS = Object.freeze({
 /**
  * Query parameter keys supported by the app for importing/exporting settings.
  */
-export const SETTINGS_URL_KEYS = Object.freeze([
+const SETTINGS_URL_KEYS = Object.freeze([
   "speed",
   "grid",
   "gen0",
@@ -48,7 +48,7 @@ export const SETTINGS_URL_KEYS = Object.freeze([
  * NOTE: The UI constrains most values via <input min/max>, but the URL parser
  * must still clamp for correctness and safety.
  */
-export const SETTINGS_SCHEMA = Object.freeze({
+const SETTINGS_SCHEMA = Object.freeze({
   speed: { type: "int", min: 1, max: 10000 }, // slider value (not delay ms)
   grid: { type: "int", min: 4, max: 256 },
   gen0: { type: "int", min: 2, max: 256 },
@@ -407,7 +407,7 @@ export function createUrlSyncController({ enabled = false, buildUrl }) {
  * @param {string} text
  * @returns {Promise<boolean>}
  */
-export async function copyTextToClipboard(text) {
+async function copyTextToClipboard(text) {
   // Prefer the async Clipboard API (works on HTTPS + modern browsers).
   if (
     typeof navigator !== "undefined" &&

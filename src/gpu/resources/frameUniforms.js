@@ -154,7 +154,7 @@ export function updateRenderUniforms(r) {
  *
  * @param {import("../renderer.js").WebGPURenderer} r
  */
-export function updateBackgroundUniforms(r) {
+function updateBackgroundUniforms(r) {
   // Background gradient direction: project the world +Y axis into the camera's screen plane.
   // In camera space, world-up transforms to (view * vec4(0,1,0,0)).xy.
   // With our column-major view matrix, that is (view[4], view[5]).
