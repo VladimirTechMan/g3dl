@@ -39,6 +39,9 @@ export class OrbitControls {
     // Pointer state (unified input for mouse/touch/pen when Pointer Events are available)
     this._activePointers = new Map(); // pointerId -> { x, y, type }
 
+    // Cursor cache (avoid redundant style writes during high-frequency move events)
+    this._cursor = "";
+
     this._isMac =
       typeof navigator !== "undefined" &&
       /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
@@ -78,7 +81,7 @@ export class OrbitControls {
     this._isDragging = false;
     this._isPanning = false;
     this._lastPinchDistance = 0;
-    if (this.canvas) this.canvas.style.cursor = "";
+    this._setCursor("");
   }
 
   destroy() {
@@ -88,6 +91,18 @@ export class OrbitControls {
       } catch (_) {}
     }
     this._activePointers.clear();
+  }
+
+  /**
+   * Update the canvas cursor only when it changes.
+   * This avoids redundant style writes during high-frequency pointer events.
+   * @param {string} cursor
+   */
+  _setCursor(cursor) {
+    if (!this.canvas) return;
+    if (this._cursor === cursor) return;
+    this._cursor = cursor;
+    this.canvas.style.cursor = cursor;
   }
 
   _on(el, type, fn, opts) {
@@ -140,7 +155,7 @@ export class OrbitControls {
     this._on(canvas, "wheel", (e) => this._handleWheel(e), { passive: false });
 
     // Cursor hinting
-    canvas.style.cursor = "grab";
+    this._setCursor("grab");
   }
 
   _handlePointerDown(e) {
@@ -175,27 +190,29 @@ export class OrbitControls {
 
     if (this._activePointers.size >= 2) {
       // Two-finger (or multi-pointer) pan + pinch zoom
-      const pts = Array.from(this._activePointers.values());
-      const cx = (pts[0].x + pts[1].x) / 2;
-      const cy = (pts[0].y + pts[1].y) / 2;
+      // Avoid per-event allocations (Array.from + per-move object literals).
+      const it = this._activePointers.values();
+      const p0 = it.next().value;
+      const p1 = it.next().value;
+      if (!p0 || !p1) return;
+
+      const cx = (p0.x + p1.x) / 2;
+      const cy = (p0.y + p1.y) / 2;
 
       this._lastMouseX = cx;
       this._lastMouseY = cy;
 
-      this._lastPinchDistance = Math.hypot(
-        pts[0].x - pts[1].x,
-        pts[0].y - pts[1].y,
-      );
+      this._lastPinchDistance = Math.hypot(p0.x - p1.x, p0.y - p1.y);
       this._isDragging = true;
       this._isPanning = true;
-      this.canvas.style.cursor = "move";
+      this._setCursor("move");
     } else {
       this._lastMouseX = e.clientX;
       this._lastMouseY = e.clientY;
       this._lastPinchDistance = 0;
       this._isDragging = true;
       this._isPanning = e.pointerType === "mouse" && e.shiftKey;
-      this.canvas.style.cursor = this._isPanning ? "move" : "grabbing";
+      this._setCursor(this._isPanning ? "move" : "grabbing");
     }
 
     this.requestRender();
@@ -209,25 +226,30 @@ export class OrbitControls {
     }
 
     if (!this.renderer) return;
-    if (!this._isDragging || !this._activePointers.has(e.pointerId)) return;
+    if (!this._isDragging) return;
 
-    this._activePointers.set(e.pointerId, {
-      x: e.clientX,
-      y: e.clientY,
-      type: e.pointerType,
-    });
+    // Update in-place to avoid allocating a new object each move.
+    const p = this._activePointers.get(e.pointerId);
+    if (!p) return;
+    p.x = e.clientX;
+    p.y = e.clientY;
 
     if (this._activePointers.size >= 2) {
-      const pts = Array.from(this._activePointers.values());
-      const cx = (pts[0].x + pts[1].x) / 2;
-      const cy = (pts[0].y + pts[1].y) / 2;
+      // Avoid per-event allocations; only need the first two pointers.
+      const it = this._activePointers.values();
+      const p0 = it.next().value;
+      const p1 = it.next().value;
+      if (!p0 || !p1) return;
+
+      const cx = (p0.x + p1.x) / 2;
+      const cy = (p0.y + p1.y) / 2;
 
       const dx = cx - this._lastMouseX;
       const dy = cy - this._lastMouseY;
 
       this.renderer.pan(dx, dy);
 
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const dist = Math.hypot(p0.x - p1.x, p0.y - p1.y);
       if (this._lastPinchDistance > 0) {
         const pinchDelta = this._lastPinchDistance - dist;
         // Scale pinch delta to feel similar to wheel
@@ -237,7 +259,7 @@ export class OrbitControls {
       this._lastPinchDistance = dist;
       this._lastMouseX = cx;
       this._lastMouseY = cy;
-      this.canvas.style.cursor = "move";
+      this._setCursor("move");
     } else {
       const dx = e.clientX - this._lastMouseX;
       const dy = e.clientY - this._lastMouseY;
@@ -253,10 +275,10 @@ export class OrbitControls {
 
       if (mousePan) {
         this.renderer.pan(dx, dy);
-        this.canvas.style.cursor = "move";
+        this._setCursor("move");
       } else {
         this.renderer.rotate(dx, dy);
-        this.canvas.style.cursor = "grabbing";
+        this._setCursor("grabbing");
       }
 
       this._lastMouseX = e.clientX;
@@ -290,7 +312,7 @@ export class OrbitControls {
       }
       this._isDragging = false;
       this._isPanning = false;
-      this.canvas.style.cursor = "grab";
+      this._setCursor("grab");
       this._lastPinchDistance = 0;
     }
 
@@ -308,7 +330,7 @@ export class OrbitControls {
     this._isPanning = e.shiftKey;
     this._lastMouseX = e.clientX;
     this._lastMouseY = e.clientY;
-    this.canvas.style.cursor = this._isPanning ? "move" : "grabbing";
+    this._setCursor(this._isPanning ? "move" : "grabbing");
     this.requestRender();
   }
 
@@ -338,7 +360,7 @@ export class OrbitControls {
     if (timeSinceMove > 50) this.renderer.stopInertia();
     this._isDragging = false;
     this._isPanning = false;
-    this.canvas.style.cursor = "grab";
+    this._setCursor("grab");
   }
 
   _getTouchDistance(touches) {
@@ -420,7 +442,7 @@ export class OrbitControls {
       this._isDragging = false;
       this._isPanning = false;
       this._lastPinchDistance = 0;
-      this.canvas.style.cursor = "grab";
+      this._setCursor("grab");
       this.requestRender(true);
     }
     e.preventDefault();
