@@ -36,6 +36,17 @@ export class OrbitControls {
     // Touch/pinch state
     this._lastPinchDistance = 0;
 
+    // Touch gesture guard:
+    // After a multi-touch gesture (2+ pointers), some mobile browsers will
+    // transiently leave one pointer active while the user is lifting fingers.
+    // Any slight motion during that transition can be misinterpreted as a
+    // single-finger rotate and produce an unexpected, fast scene rotation.
+    //
+    // To avoid this, we suppress single-finger touch rotation after leaving
+    // multi-touch mode until all pointers are released (i.e., the user lifts
+    // the remaining finger) and a fresh gesture begins.
+    this._suppressTouchRotateUntilRelease = false;
+
     // Pointer state (unified input for mouse/touch/pen when Pointer Events are available)
     this._activePointers = new Map(); // pointerId -> { x, y, type }
 
@@ -91,6 +102,7 @@ export class OrbitControls {
     this._lastPinchDistance = 0;
     this._pinchId0 = null;
     this._pinchId1 = null;
+    this._suppressTouchRotateUntilRelease = false;
     this._setCursor("");
   }
 
@@ -103,6 +115,7 @@ export class OrbitControls {
     this._activePointers.clear();
     this._pinchId0 = null;
     this._pinchId1 = null;
+    this._suppressTouchRotateUntilRelease = false;
   }
 
   /**
@@ -262,6 +275,9 @@ export class OrbitControls {
     this._lastMoveTime = 0;
 
     if (this._activePointers.size >= 2) {
+      // New multi-touch gesture; allow pinch/pan immediately.
+      this._suppressTouchRotateUntilRelease = false;
+
       // Two-finger (or multi-pointer) pan + pinch zoom.
       // Only (re)initialize the pinch baseline when entering multi-pointer mode
       // or when the current tracked pair is invalid.
@@ -284,6 +300,8 @@ export class OrbitControls {
       // Single pointer.
       this._pinchId0 = null;
       this._pinchId1 = null;
+      // Fresh single-pointer gesture; re-arm touch rotation.
+      this._suppressTouchRotateUntilRelease = false;
       this._lastMouseX = e.clientX;
       this._lastMouseY = e.clientY;
       this._lastPinchDistance = 0;
@@ -357,6 +375,19 @@ export class OrbitControls {
         this._lastMouseX = e.clientX;
         this._lastMouseY = e.clientY;
       }
+
+      // Post-pinch suppression (touch/pen): when a multi-touch gesture ends,
+      // some browsers leave one pointer active momentarily. Any incidental
+      // motion while the user is lifting fingers can otherwise be interpreted
+      // as a single-finger rotate and cause a sudden scene jerk.
+      if (e.pointerType !== "mouse" && this._suppressTouchRotateUntilRelease) {
+        this._lastMouseX = e.clientX;
+        this._lastMouseY = e.clientY;
+        this._setCursor("grab");
+        e.preventDefault();
+        return;
+      }
+
       const dx = e.clientX - this._lastMouseX;
       const dy = e.clientY - this._lastMouseY;
 
@@ -406,6 +437,7 @@ export class OrbitControls {
           ? this._pinchId0
           : null;
 
+    const prevPointerCount = this._activePointers.size;
     this._activePointers.delete(e.pointerId);
 
     // Gesture transitions:
@@ -439,9 +471,16 @@ export class OrbitControls {
         this._lastMouseX = p0.x;
         this._lastMouseY = p0.y;
       }
+
+      // If we just exited a multi-touch gesture (2+ -> 1), suppress touch
+      // rotation until the remaining pointer is released.
+      if (prevPointerCount >= 2) {
+        this._suppressTouchRotateUntilRelease = true;
+      }
+
       this._isDragging = true;
       this._isPanning = false;
-      this._setCursor("grabbing");
+      this._setCursor(this._suppressTouchRotateUntilRelease ? "grab" : "grabbing");
     }
 
     // When last pointer lifts, stop dragging and apply inertia conditions
@@ -458,6 +497,7 @@ export class OrbitControls {
       this._lastPinchDistance = 0;
       this._pinchId0 = null;
       this._pinchId1 = null;
+      this._suppressTouchRotateUntilRelease = false;
     }
 
     this.requestRender();
@@ -521,6 +561,8 @@ export class OrbitControls {
     this.renderer.stopInertia();
 
     if (e.touches.length === 1) {
+      // Fresh single-touch gesture; re-arm touch rotation.
+      this._suppressTouchRotateUntilRelease = false;
       this._isDragging = true;
       this._isPanning = false;
       this._lastMouseX = e.touches[0].clientX;
@@ -528,6 +570,8 @@ export class OrbitControls {
       this._lastPinchDistance = 0;
       this.requestRender(true);
     } else if (e.touches.length === 2) {
+      // Multi-touch gesture; allow pinch/pan.
+      this._suppressTouchRotateUntilRelease = false;
       this._isDragging = true;
       this._isPanning = true;
       this._lastMouseX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -546,6 +590,13 @@ export class OrbitControls {
     if (!this._isDragging) return;
 
     if (e.touches.length === 1) {
+      if (this._suppressTouchRotateUntilRelease) {
+        // See pointer-events path: avoid "snap rotate" after multi-touch.
+        this._lastMouseX = e.touches[0].clientX;
+        this._lastMouseY = e.touches[0].clientY;
+        e.preventDefault();
+        return;
+      }
       const dx = e.touches[0].clientX - this._lastMouseX;
       const dy = e.touches[0].clientY - this._lastMouseY;
       this.renderer.rotate(dx, dy);
@@ -579,6 +630,15 @@ export class OrbitControls {
       e.preventDefault();
       return;
     }
+    if (e.touches.length === 1 && this._lastPinchDistance > 0) {
+      // Transition 2 -> 1: suppress rotation until the remaining finger lifts.
+      this._suppressTouchRotateUntilRelease = true;
+      this._lastPinchDistance = 0;
+      this._isPanning = false;
+      this._lastMouseX = e.touches[0].clientX;
+      this._lastMouseY = e.touches[0].clientY;
+    }
+
     if (e.touches.length === 0) {
       const now = performance.now();
       const timeSinceMove = now - this._lastMoveTime;
@@ -586,6 +646,7 @@ export class OrbitControls {
       this._isDragging = false;
       this._isPanning = false;
       this._lastPinchDistance = 0;
+      this._suppressTouchRotateUntilRelease = false;
       this._setCursor("grab");
       this.requestRender(true);
     }
