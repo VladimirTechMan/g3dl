@@ -42,7 +42,7 @@ import { createPanelManager } from "./panels.js";
  */
 
 /**
- * @param {any} dom
+ * @param {import("./dom.js").DomCache} dom
  * @param {BindUiHandlers} handlers
  * @returns {{
  *   destroy: () => void,

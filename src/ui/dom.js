@@ -20,48 +20,51 @@ function byId(id) {
 /**
  * Cached DOM references.
  *
- * @type {{
- *   canvas: HTMLCanvasElement|null,
- *   app: HTMLElement|null,
- *   stepBtn: HTMLButtonElement|null,
- *   playBtn: HTMLButtonElement|null,
- *   resetBtn: HTMLButtonElement|null,
- *   settingsBtn: HTMLButtonElement|null,
- *   helpBtn: HTMLButtonElement|null,
- *   fullscreenBtn: HTMLButtonElement|null,
- *   fullscreenEnterIcon: SVGElement|null,
- *   fullscreenExitIcon: SVGElement|null,
- *   settingsPanel: HTMLElement|null,
- *   helpPanel: HTMLElement|null,
- *   controls: HTMLElement|null,
- *   buttonRow: HTMLElement|null,
- *   playIcon: SVGElement|null,
- *   pauseIcon: SVGElement|null,
- *   speedSlider: HTMLInputElement|null,
- *   sizeInput: HTMLInputElement|null,
- *   initSizeInput: HTMLInputElement|null,
- *   densitySlider: HTMLInputElement|null,
- *   densityTip: HTMLElement|null,
- *   cellColorPicker: HTMLInputElement|null,
- *   cellColorPicker2: HTMLInputElement|null,
- *   bgColorPicker: HTMLInputElement|null,
- *   bgColorPicker2: HTMLInputElement|null,
- *   presetSelect: HTMLSelectElement|null,
- *   surviveInput: HTMLInputElement|null,
- *   birthInput: HTMLInputElement|null,
- *   toroidalCheckbox: HTMLInputElement|null,
- *   stableStopCheckbox: HTMLInputElement|null,
- *   lanternCheckbox: HTMLInputElement|null,
- *   screenShowCheckbox: HTMLInputElement|null,
- *   copyUrlBtn: HTMLButtonElement|null,
- *   gridProjectionCheckbox: HTMLInputElement|null,
- *   generationDisplay: HTMLElement|null,
- *   populationDisplay: HTMLElement|null,
- *   statsPanel: HTMLElement|null,
- *   infoBtn: HTMLButtonElement|null,
- *   header: HTMLElement|null,
- * }}
+ * This typedef is intentionally exported via JSDoc so other modules can use:
+ *   @param {import("./dom.js").DomCache} dom
+ *
+ * @typedef {Object} DomCache
+ * @property {HTMLCanvasElement|null} canvas
+ * @property {HTMLElement|null} app
+ * @property {HTMLButtonElement|null} stepBtn
+ * @property {HTMLButtonElement|null} playBtn
+ * @property {HTMLButtonElement|null} resetBtn
+ * @property {HTMLButtonElement|null} settingsBtn
+ * @property {HTMLButtonElement|null} helpBtn
+ * @property {HTMLButtonElement|null} fullscreenBtn
+ * @property {SVGElement|null} fullscreenEnterIcon
+ * @property {SVGElement|null} fullscreenExitIcon
+ * @property {HTMLElement|null} settingsPanel
+ * @property {HTMLElement|null} helpPanel
+ * @property {HTMLElement|null} controls
+ * @property {HTMLElement|null} buttonRow
+ * @property {SVGElement|null} playIcon
+ * @property {SVGElement|null} pauseIcon
+ * @property {HTMLInputElement|null} speedSlider
+ * @property {HTMLInputElement|null} sizeInput
+ * @property {HTMLInputElement|null} initSizeInput
+ * @property {HTMLInputElement|null} densitySlider
+ * @property {HTMLElement|null} densityTip
+ * @property {HTMLInputElement|null} cellColorPicker
+ * @property {HTMLInputElement|null} cellColorPicker2
+ * @property {HTMLInputElement|null} bgColorPicker
+ * @property {HTMLInputElement|null} bgColorPicker2
+ * @property {HTMLSelectElement|null} presetSelect
+ * @property {HTMLInputElement|null} surviveInput
+ * @property {HTMLInputElement|null} birthInput
+ * @property {HTMLInputElement|null} toroidalCheckbox
+ * @property {HTMLInputElement|null} stableStopCheckbox
+ * @property {HTMLInputElement|null} lanternCheckbox
+ * @property {HTMLInputElement|null} screenShowCheckbox
+ * @property {HTMLButtonElement|null} copyUrlBtn
+ * @property {HTMLInputElement|null} gridProjectionCheckbox
+ * @property {HTMLElement|null} generationDisplay
+ * @property {HTMLElement|null} populationDisplay
+ * @property {HTMLElement|null} statsPanel
+ * @property {HTMLButtonElement|null} infoBtn
+ * @property {HTMLElement|null} header
  */
+/** @type {DomCache} */
 const _dom = (() => {
   const canvas = /** @type {HTMLCanvasElement|null} */ (byId("glCanvas"));
   const app = byId("app");

@@ -8,7 +8,7 @@
 import { on } from "../util/events.js";
 
 /**
- * @param {any} dom
+ * @param {import("./dom.js").DomCache} dom
  * @param {any} handlers
  * @returns {{ destroy: () => void }}
  */
