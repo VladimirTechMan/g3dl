@@ -318,23 +318,19 @@ body {
 .button-row {
   display: flex;
   width: 100%;
+  box-sizing: border-box;
   align-items: center;
   justify-content: flex-start;
-  gap: 0;
-}
 
-.button-row .icon-btn + .icon-btn {
-  margin-left: var(--icon-btn-gap);
-}
+  /* Use gap + padding rather than per-button margins. This keeps each wrapped row
+     aligned and avoids layout drift on narrow viewports. */
+  gap: var(--icon-btn-gap);
+  padding-left: var(--controls-edge-pad);
+  padding-right: var(--controls-edge-pad);
 
-.button-row .icon-btn:first-child {
-  margin-left: var(--controls-edge-pad);
+  /* Allow wrapping when max-width clamps the controls panel on narrow screens. */
+  flex-wrap: wrap;
 }
-
-.button-row .icon-btn:last-child {
-  margin-right: var(--controls-edge-pad);
-}
-
 /* Icon-only buttons */
 .icon-btn {
   display: flex;
