@@ -388,6 +388,16 @@ async function init() {
       : 256;
   sizeInput.max = String(maxGrid);
 
+  // Keep the Gen0 edge input's HTML constraint in sync with the actual grid limit.
+  //
+  // Notes:
+  // - The HTML `max` attribute participates in browser-native constraint validation.
+  // - If it is stale (e.g., left at the initial HTML value), the control can remain
+  //   "invalid" even when our JS logic would accept/clamp it.
+  // - We temporarily allow up to maxGrid so URL-restored values are not prematurely
+  //   clamped to a stale smaller max; we then tighten to the current grid size.
+  if (initSizeInput) initSizeInput.max = String(maxGrid);
+
   state.flags.urlHadSettingsParams = hasKnownSettingsParams();
   if (state.flags.urlHadSettingsParams) {
     const restored = applySettingsFromUrl(dom, { maxGrid });
@@ -446,6 +456,9 @@ async function init() {
   // (Important for URL-restored colors/rules.)
   state.settings.gridSize = parseInt(sizeInput.value, 10) || state.settings.gridSize;
   state.settings.initSize = parseInt(initSizeInput.value, 10) || state.settings.initSize;
+
+  // Now that grid edge is finalized, tighten the Gen0 edge max to match.
+  if (initSizeInput) initSizeInput.max = String(state.settings.gridSize);
   if (state.settings.initSize > state.settings.gridSize) {
     state.settings.initSize = state.settings.gridSize;
     initSizeInput.value = String(state.settings.initSize);
@@ -925,6 +938,11 @@ async function handleSizeChange() {
   sizeInput.value = value;
   setInvalid(wrapper, false);
 
+  // Keep Gen0 edge HTML constraint in sync with the intended logical maximum.
+  // This prevents browser-native constraint validation (based on the `max` attribute)
+  // from disagreeing with the app's clamping rules.
+  if (initSizeInput) initSizeInput.max = String(value);
+
   if (state.settings.initSize > value) {
     state.settings.initSize = value;
     initSizeInput.value = state.settings.initSize;
@@ -949,6 +967,9 @@ async function handleSizeChange() {
       // Revert to previous grid size
       sizeInput.value = state.settings.gridSize;
       value = state.settings.gridSize;
+
+      // Restore Gen0 edge max to match the reverted grid size.
+      if (initSizeInput) initSizeInput.max = String(value);
     }
   } else {
     state.settings.gridSize = value;
@@ -1007,10 +1028,18 @@ async function handleInitSizeChange() {
   let value = parseInt(initSizeInput.value, 10);
   const wrapper = initSizeInput.parentElement;
 
+  // Compute the effective maximum: the Gen0 edge cannot exceed the current grid edge.
+  // We also respect the input's own `max` attribute (kept in sync with grid edge)
+  // to avoid browser-native constraint validation disagreement.
+  const maxAttr = parseInt(initSizeInput.max, 10);
+  const max = Number.isFinite(maxAttr)
+    ? Math.min(maxAttr, state.settings.gridSize)
+    : state.settings.gridSize;
+
   if (isNaN(value) || value < 2) {
     value = 2;
-  } else if (value > state.settings.gridSize) {
-    value = state.settings.gridSize;
+  } else if (value > max) {
+    value = max;
   }
 
   initSizeInput.value = value;
@@ -1038,7 +1067,15 @@ function validateInitSizeInput() {
   const value = parseInt(initSizeInput.value, 10);
   const wrapper = initSizeInput.parentElement;
 
-  setInvalid(wrapper, isNaN(value) || value < 2 || value > state.settings.gridSize);
+  // Use the same effective maximum as the clamping logic. The HTML `max` attribute
+  // is updated to track the current grid edge, but we also fall back defensively
+  // to the current grid size in case the DOM constraint drifts.
+  const maxAttr = parseInt(initSizeInput.max, 10);
+  const max = Number.isFinite(maxAttr)
+    ? Math.min(maxAttr, state.settings.gridSize)
+    : state.settings.gridSize;
+
+  setInvalid(wrapper, isNaN(value) || value < 2 || value > max);
 }
 
 /**
