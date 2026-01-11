@@ -30,7 +30,7 @@
   /* Typography scale for UI elements */
   --panel-font-size: 0.95rem;
   --panel-line-height: 1.4;
-/* HUD insets for corner UI elements */
+  /* HUD insets for corner UI elements */
   /* Include safe-area insets where supported (iOS notch/home indicator). */
   --hud-inset-left: max(24px, calc(env(safe-area-inset-left, 0px) + 24px));
   --hud-inset-right: max(24px, calc(env(safe-area-inset-right, 0px) + 24px));
@@ -331,6 +331,7 @@ body {
   /* Allow wrapping when max-width clamps the controls panel on narrow screens. */
   flex-wrap: wrap;
 }
+
 /* Icon-only buttons */
 .icon-btn {
   display: flex;
@@ -404,6 +405,7 @@ body {
   gap: 6px;
   width: 100%;
 }
+
 .speed-slider > span:first-child {
   flex-shrink: 0;
 }
@@ -572,7 +574,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: inherit;
--moz-appearance: textfield;
+  -moz-appearance: textfield;
 }
 
 .input-wrapper input[type="number"]::-webkit-outer-spin-button,
@@ -827,9 +829,6 @@ input[type="range"]::-moz-range-thumb {
   font-style: italic;
 }
 
-/* Help */
-/* Responsive */
-
 /* Info button (hidden by default; shown on touch devices) */
 #infoBtn {
   display: none;
@@ -851,7 +850,8 @@ input[type="range"]::-moz-range-thumb {
   font-style: italic;
   font-family: Georgia, serif;
   align-items: center;
-  justify-content: center;}
+  justify-content: center;
+}
 
 #infoBtn:hover {
   /* Keep white background; avoid color-shift on hover. */
@@ -1065,10 +1065,8 @@ textarea {
     min-height: 44px;
     padding: 0.25rem 0.2rem;
   }
-
 }
 
 .playing #playBtn {
   background: var(--accent-primary);
 }
-
