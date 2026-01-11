@@ -229,13 +229,11 @@ body {
   border-radius: var(--panel-scrollbar-track-radius);
 }
 
-
 .panel-body::-webkit-scrollbar-thumb {
   background: var(--panel-scrollbar-thumb-bg);
   border-radius: var(--panel-scrollbar-thumb-radius);
   border: var(--panel-scrollbar-thumb-border);
 }
-
 
 .panel-body::-webkit-scrollbar-thumb:hover {
   background: var(--panel-scrollbar-thumb-hover-bg);
@@ -414,7 +412,6 @@ body {
   flex-shrink: 0;
 }
 
-
 .speed-slider input[type="range"] {
   /* In a horizontal flex row, avoid width: 100% forcing the container wider when panels open. */
   flex: 1 1 auto;
@@ -592,7 +589,6 @@ input[type="range"]::-moz-range-thumb {
   outline: none;
 }
 
-
 .input-wrapper.invalid {
   border-color: #ff4a6a;
 }
@@ -697,8 +693,6 @@ input[type="range"]::-moz-range-thumb {
 .rules-inputs input[type="text"]:focus {
   outline: none;
 }
-
-
 
 /* Select dropdown for presets */
 .select-label {
@@ -929,7 +923,6 @@ textarea {
     -webkit-text-size-adjust: 100%;
   }
 
-
   /* Touch-first sizing: improve legibility and meet iOS tap/typing ergonomics */
   :root {
     /* Increase panel text size and leading on mobile (Settings/Help). */
@@ -959,9 +952,6 @@ textarea {
     font-size: var(--panel-font-size);
   }
 
-
-
-
   /* About (mobile): hide the permanent header and use the "i" button instead. */
   /* About/Info button: meet touch target guidance */
   #infoBtn {
@@ -970,7 +960,6 @@ textarea {
     height: 48px;
     font-size: 22px;
   }
-
 
   /* Keep the header hidden unless explicitly toggled via the "i" button. */
   #header {
@@ -1047,8 +1036,6 @@ textarea {
     height: 28px;
   }
 
-
-
   .color-picker {
     width: 44px;
     height: 44px;
@@ -1085,17 +1072,7 @@ textarea {
 
 }
 
-/* Animations */
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
+.playing #playBtn {
+  background: var(--accent-primary);
 }
 
-.playing #playBtn {
-  animation: pulse 1.5s ease-in-out infinite;
-}
