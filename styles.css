@@ -927,7 +927,7 @@ textarea {
 
     /* Ensure primary controls meet comfortable tap target size. */
     --icon-btn-size: 48px;
-    --icon-btn-gap: 10px;
+    --icon-btn-gap: 4px;
 
     /* Slightly tighten edge padding to offset the wider buttons. */
     --controls-edge-pad: 14px;
@@ -1062,7 +1062,7 @@ textarea {
   }
 
   #settings-panel .checkbox-label {
-    min-height: 44px;
+    min-height: 28px;
     padding: 0.25rem 0.2rem;
   }
 }
