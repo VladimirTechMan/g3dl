@@ -71,7 +71,14 @@ function applyRotation(r, dx, dy) {
   ensureCameraScratch(r);
 
   const sensitivity = 0.01;
-  const yAngle = -dx * sensitivity;
+  // When the camera is "upside down" (its up vector points mostly opposite world up),
+  // a naive yaw-about-world-up rotation makes horizontal dragging feel inverted.
+  //
+  // To keep interaction intuitive, we flip the yaw direction based on the sign of
+  // dot(cameraUp, worldUp). We apply a small hysteresis band to avoid jitter when
+  // the camera is near a 90° tilt (where the dot product is close to zero).
+  const yawSign = getYawSignForDrag(r);
+  const yAngle = -dx * sensitivity * yawSign;
   const xAngle = -dy * sensitivity;
 
   // qY = rotation about world Y
@@ -100,6 +107,31 @@ function applyRotation(r, dx, dy) {
 
   quatNormalize(r.cameraQuat);
   syncCameraMatrix(r);
+}
+
+/**
+ * Determine whether horizontal dragging should be inverted to preserve intuitive yaw.
+ *
+ * @param {any} r
+ * @returns {number} +1 or -1
+ */
+function getYawSignForDrag(r) {
+  // cameraMatrix columns are: right (0..2), up (4..6), forward (8..10) in world space.
+  // dot(up, worldUp) == up.y == cm[5].
+  const cm = r.cameraMatrix;
+  const upY = cm && typeof cm[5] === "number" ? cm[5] : 1;
+
+  // Persist a stable sign to avoid flicker around the pole.
+  const prev = typeof r._yawDragSign === "number" ? r._yawDragSign : 1;
+
+  // Hysteresis threshold: only flip when the camera is clearly inverted.
+  const k = 0.15;
+  let s = prev;
+  if (upY > k) s = 1;
+  else if (upY < -k) s = -1;
+
+  r._yawDragSign = s;
+  return s;
 }
 
 /**

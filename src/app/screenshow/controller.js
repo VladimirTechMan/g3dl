@@ -513,10 +513,12 @@ export class ScreenShowController {
     const cy = 0.5 * (min[1] + max[1]);
     const cz = 0.5 * (min[2] + max[2]);
 
-    // Convert to world coordinates: shader centers the grid at (gridSize*0.5).
-    const wx = (cx - gs * 0.5) * cs;
-    const wy = (cy - gs * 0.5) * cs;
-    const wz = (cz - gs * 0.5) * cs;
+    // Convert to world coordinates: shader centers cell centers at (gridSize-1)*0.5.
+    const gridCenter = (gs - 1) * 0.5;
+
+    const wx = (cx - gridCenter) * cs;
+    const wy = (cy - gridCenter) * cs;
+    const wz = (cz - gridCenter) * cs;
 
     // Extent in world coordinates.
     const ex = (max[0] - min[0] + 1) * cs;
@@ -576,16 +578,17 @@ function cellsAabbToWorldAabb(aabb, gs, cs) {
   if (!aabb || !aabb.min || !aabb.max) return null;
   const min = aabb.min,
     max = aabb.max;
+  const gridCenter = (gs - 1) * 0.5;
   return {
     min: [
-      (min[0] - gs * 0.5) * cs,
-      (min[1] - gs * 0.5) * cs,
-      (min[2] - gs * 0.5) * cs,
+      (min[0] - gridCenter) * cs,
+      (min[1] - gridCenter) * cs,
+      (min[2] - gridCenter) * cs,
     ],
     max: [
-      (max[0] - gs * 0.5) * cs,
-      (max[1] - gs * 0.5) * cs,
-      (max[2] - gs * 0.5) * cs,
+      (max[0] - gridCenter) * cs,
+      (max[1] - gridCenter) * cs,
+      (max[2] - gridCenter) * cs,
     ],
   };
 }

@@ -456,7 +456,10 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                 let uy = (p >> 10u) & 0x3FFu;
                 let uz = (p >> 20u) & 0x3FFu;
                 let off = vec3<f32>(f32(ux), f32(uy), f32(uz));
-                let centered = off - vec3<f32>(u.gridSize * 0.5);
+                // Center cell *centers* at the world origin.
+                // Cell indices are 0..gridSize-1, so the center index is (gridSize-1)/2.
+                let gridCenter = (u.gridSize - 1.0) * 0.5;
+                let centered = off - vec3<f32>(gridCenter);
                 let wpos = (pos * u.cellSize * 0.9) + (centered * u.cellSize);
 
                 // Calculate cell color based on Y position (gradient along vertical axis)
