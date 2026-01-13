@@ -76,6 +76,53 @@ const {
 const APP_ABORT = new AbortController();
 const APP_SIGNAL = APP_ABORT.signal;
 
+/**
+ * Resolve CSS length expressions (including `var(...)`, `env(...)`, `calc(...)`, `max(...)`)
+ * into device pixels by applying them to a real CSS property and reading the computed style.
+ *
+ * This is necessary because custom properties returned by getComputedStyle() are not resolved,
+ * so values like `max(24px, calc(env(...) + 24px))` cannot be parsed with parseFloat().
+ */
+let _cssLengthProbeEl = null;
+function resolveCssLengthPx(expr, { axis = "left", fallbackPx = 0 } = {}) {
+  // Ensure we only touch the DOM after it exists.
+  const parent = document.body || document.documentElement;
+  if (!_cssLengthProbeEl && parent) {
+    const el = document.createElement("div");
+    el.style.position = "fixed";
+    el.style.visibility = "hidden";
+    el.style.pointerEvents = "none";
+    el.style.width = "0";
+    el.style.height = "0";
+    el.style.left = "0";
+    el.style.top = "0";
+    parent.appendChild(el);
+    _cssLengthProbeEl = el;
+  }
+
+  const el = _cssLengthProbeEl;
+  if (!el) return fallbackPx;
+
+  // Map axis => padding property.
+  const prop =
+    axis === "right"
+      ? "paddingRight"
+      : axis === "bottom"
+        ? "paddingBottom"
+        : "paddingLeft";
+
+  el.style[prop] = expr;
+  const cs = getComputedStyle(el);
+  const raw =
+    prop === "paddingRight"
+      ? cs.paddingRight
+      : prop === "paddingBottom"
+        ? cs.paddingBottom
+        : cs.paddingLeft;
+
+  const px = parseFloat(raw);
+  return Number.isFinite(px) ? px : fallbackPx;
+}
 
 // iOS/iPadOS detection (including iPadOS reporting as Mac)
 const IS_IOS = (() => {
@@ -100,20 +147,11 @@ function createStatsViewportPin({ signal }) {
   const vv = window.visualViewport;
   let rafId = 0;
 
-  function readCssPxVar(varName, fallbackPx) {
-    const v = getComputedStyle(document.documentElement)
-      .getPropertyValue(varName)
-      .trim();
-    const n = parseFloat(v);
-    return Number.isFinite(n) ? n : fallbackPx;
-  }
-
   function update() {
     rafId = 0;
 
-    // HUD insets are defined in CSS (including safe-area handling).
-    const insetLeft = readCssPxVar("--hud-inset-left", 24);
-    const insetBottom = readCssPxVar("--hud-inset-bottom", 24);
+    const insetBottom = resolveCssLengthPx("var(--hud-inset-bottom)", { axis: "bottom", fallbackPx: 24 });
+    const insetLeft = resolveCssLengthPx("var(--hud-inset-left)", { axis: "left", fallbackPx: 24 });
 
     const left = Math.max(0, vv.offsetLeft + insetLeft);
     const top = Math.max(
@@ -143,7 +181,6 @@ function createStatsViewportPin({ signal }) {
 }
 
 const scheduleStatsViewportPin = createStatsViewportPin({ signal: APP_SIGNAL });
-
 
 // Game rule presets (definition lives in settings.js)
 const presets = RULE_PRESETS;
@@ -191,12 +228,40 @@ function syncControlsWidthToButtonRow() {
     (parseFloat(cs.borderRightWidth) || 0);
   const minW = parseFloat(cs.minWidth) || 0;
 
-  const rowW = Math.ceil(buttonRow.scrollWidth);
+  // Compute the *intrinsic* width of the visible button row (content + gap + padding),
+  // independent of any previously forced panel width.
+  const rowStyle = getComputedStyle(buttonRow);
+  const gap =
+    parseFloat(rowStyle.columnGap) ||
+    parseFloat(rowStyle.gap) ||
+    0;
+
+  const rowPadX =
+    (parseFloat(rowStyle.paddingLeft) || 0) +
+    (parseFloat(rowStyle.paddingRight) || 0);
+
+  const visibleButtons = Array.from(buttonRow.children).filter((el) => {
+    if (!(el instanceof HTMLElement)) return false;
+    return getComputedStyle(el).display !== "none";
+  });
+
+  let contentW = 0;
+  for (const el of visibleButtons) {
+    contentW += el.getBoundingClientRect().width;
+  }
+  if (visibleButtons.length > 1) contentW += gap * (visibleButtons.length - 1);
+
+  const rowW = Math.ceil(contentW + rowPadX);
   let target = Math.ceil(rowW + padX + borderX);
   target = Math.max(minW, target);
 
-  // Mirror CSS max-width: calc(100vw - 48px)
-  const maxAllowed = Math.max(0, window.innerWidth - 48);
+  // Mirror CSS:
+  //   max-width: calc(100vw - var(--hud-inset-left) - var(--hud-inset-right));
+  // Use visualViewport width when available (mobile pinch/zoom), otherwise fallback to layout viewport.
+  const viewportW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const insetLeft = resolveCssLengthPx("var(--hud-inset-left)", { axis: "left", fallbackPx: 24 });
+  const insetRight = resolveCssLengthPx("var(--hud-inset-right)", { axis: "right", fallbackPx: 24 });
+  const maxAllowed = Math.max(0, viewportW - insetLeft - insetRight);
   target = Math.min(target, maxAllowed);
 
   controls.style.width = `${target}px`;
@@ -245,6 +310,15 @@ function destroyApp(_reason = "") {
   // racing with teardown logic.
   try {
     APP_ABORT.abort();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (_cssLengthProbeEl && _cssLengthProbeEl.parentNode) {
+      _cssLengthProbeEl.parentNode.removeChild(_cssLengthProbeEl);
+    }
+    _cssLengthProbeEl = null;
   } catch (_) {
     // ignore
   }
@@ -483,8 +557,6 @@ async function init() {
       screenShow.setOrbitControls(orbitControls);
       screenShow.updateNavLock();
     }
-
-
 
     renderer.onDeviceLost = (info) => {
       console.error("WebGPU device lost:", info);
