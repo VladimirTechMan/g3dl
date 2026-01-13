@@ -54,6 +54,8 @@ export class LoopController {
     this.renderer = renderer;
     this.hooks = hooks;
 
+    this.isDestroyed = false;
+
     // Simulation step serialization.
     this.stepQueue = Promise.resolve();
 
@@ -84,6 +86,7 @@ export class LoopController {
    * Treat a resize/orientation change as a render trigger.
    */
   notifyResizeEvent() {
+    if (this.isDestroyed) return;
     this.lastResizeEventMs = performance.now();
     this.appResizePending = true;
     this.requestRender(true);
@@ -95,6 +98,7 @@ export class LoopController {
    * @param {boolean} [immediate]
    */
   requestRender(immediate = false) {
+    if (this.isDestroyed || !this.renderer) return;
     this.renderRequested = true;
 
     if (immediate && this.renderTimerId) {
@@ -134,6 +138,42 @@ export class LoopController {
   }
 
   /**
+   * Tear down scheduled work owned by the loop controller.
+   *
+   * This cannot cancel an in-flight GPU step, but it prevents future ticks/renders
+   * and detaches the renderer reference so callbacks become no-ops.
+   */
+  destroy() {
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
+
+    try {
+      this.stopPlaying();
+    } catch (_) {
+      // ignore
+    }
+
+    if (this.playTimer) {
+      clearTimeout(this.playTimer);
+      this.playTimer = null;
+    }
+
+    if (this.renderTimerId) {
+      clearTimeout(this.renderTimerId);
+      this.renderTimerId = 0;
+    }
+
+    if (this.renderRafId) {
+      cancelAnimationFrame(this.renderRafId);
+      this.renderRafId = 0;
+    }
+
+    // Best-effort: allow the queue to drain without touching the renderer.
+    this.renderer = null;
+    this.hooks = null;
+  }
+
+  /**
    * If a tick is currently waiting on a timer, reschedule it using the current
    * speed delay. Useful when the user changes the speed slider during play.
    */
@@ -153,6 +193,7 @@ export class LoopController {
    * Start play mode (if not already playing).
    */
   startPlaying() {
+    if (this.isDestroyed || !this.renderer) return;
     if (this.isPlaying) return;
 
     // Any previous play session is obsolete.
@@ -191,6 +232,7 @@ export class LoopController {
    * @returns {Promise<boolean>}
    */
   queueStep(syncStats = true) {
+    if (this.isDestroyed || !this.renderer) return Promise.resolve(false);
     const p = this.stepQueue.then(async () => {
       const changed = await this.renderer.step({ syncStats, pace: true });
 
@@ -237,6 +279,7 @@ export class LoopController {
    * @param {number} sessionId
    */
   async _playTick(sessionId) {
+    if (this.isDestroyed || !this.renderer) return;
     if (!this.isPlaying || sessionId !== this.playSessionId) return;
     if (this.playTickInProgress) return; // extra safety against re-entry
 

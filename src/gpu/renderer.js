@@ -151,6 +151,13 @@ export class WebGPURenderer {
     this.deviceLost = false;
     this.onDeviceLost = null;
 
+    // Renderer lifetime flag for SPA-style mounts/unmounts.
+    // The app currently initializes exactly once, but destroy() makes it safe to
+    // embed into larger applications without accumulating GPU resources or listeners.
+    this.isDestroyed = false;
+    // Used by async readback helpers to suppress teardown-time warnings.
+    this._suppressAsyncErrors = false;
+
     // Centralized buffer creation + CPU→GPU writes (scratch-backed, debug validated).
     this._buffers = new BufferManager();
 
@@ -267,6 +274,99 @@ export class WebGPURenderer {
     ensureCameraScratch(this);
     this.setQuatFromEuler(0.7, -0.5);
     syncCameraMatrix(this);
+  }
+
+  /**
+   * Release GPU resources owned by this renderer.
+   *
+   * WebGPU objects are garbage-collected on the JS side, but explicitly destroying
+   * large GPUBuffer/GPUTexture resources is important in SPA scenarios (where the
+   * page is not reloaded) and on mobile devices where VRAM pressure can trigger
+   * device loss.
+   *
+   * This method is idempotent; it is safe to call multiple times.
+   */
+  destroy() {
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
+    this._suppressAsyncErrors = true;
+
+    const tryDestroy = (o) => {
+      try {
+        if (o && typeof o.destroy === "function") o.destroy();
+      } catch (_) {}
+    };
+
+    // Grid-sized resources (buffers that scale with gridSize + readback rings).
+    try {
+      destroyGridResourcesImpl(this);
+    } catch (_) {}
+
+    // Geometry / uniforms
+    tryDestroy(this.cubeVertexBuffer);
+    this.cubeVertexBuffer = null;
+    tryDestroy(this.cubeIndexBuffer);
+    this.cubeIndexBuffer = null;
+    tryDestroy(this.uniformBuffer);
+    this.uniformBuffer = null;
+
+    // GPU-driven draw args
+    tryDestroy(this.indirectArgsBuffer);
+    this.indirectArgsBuffer = null;
+    tryDestroy(this.drawArgsParamsBuffer);
+    this.drawArgsParamsBuffer = null;
+
+    // Optional grid projection instances
+    tryDestroy(this.gridProjInstanceBuffer);
+    this.gridProjInstanceBuffer = null;
+
+    // Depth buffer
+    tryDestroy(this.depthTexture);
+    this.depthTexture = null;
+    this.depthTextureView = null;
+
+    // Drop bind groups and pipelines (no explicit destroy, but clear references).
+    this.bgBindGroup = null;
+    this.cellBindGroup = null;
+    this.computeBindGroups = [null, null];
+    this.extractBindGroups = [null, null];
+    this.initBindGroups = [null, null];
+    this.drawArgsBindGroup = null;
+    this.aabbBindGroup = null;
+    this.aabbArgsBindGroup = null;
+    this.gridProjBindGroup = null;
+
+    this.bgPipeline = null;
+    this.renderPipeline = null;
+    this.computePipeline = null;
+    this.extractPipeline = null;
+    this.initPipeline = null;
+    this.drawArgsPipeline = null;
+    this.aabbPipeline = null;
+    this.aabbArgsPipeline = null;
+    this.gridProjPipeline = null;
+
+    // Pipeline compilation caches
+    try {
+      this._shaderModuleCache?.clear();
+    } catch (_) {}
+    this._ensureEssentialPipelinesPromise = null;
+    this._ensureAabbPipelinesPromise = null;
+
+    // Release CPU-side helpers that may retain the GPUDevice.
+    try {
+      if (this._buffers && typeof this._buffers.destroy === "function") {
+        this._buffers.destroy();
+      } else if (this._buffers && typeof this._buffers.setDevice === "function") {
+        this._buffers.setDevice(null);
+      }
+    } catch (_) {}
+
+    // Drop remaining references so GC can reclaim promptly in SPA unmounts.
+    this.onDeviceLost = null;
+    this.context = null;
+    this.device = null;
+    this._canvasConfig = null;
   }
 
 
@@ -1427,6 +1527,102 @@ export class WebGPURenderer {
     });
     this.depthTextureView = this.depthTexture.createView();
     return true;
+  }
+
+  // ----------------------------
+  // Teardown (SPA embeds)
+  // ----------------------------
+
+  /**
+   * Destroy GPU resources owned by this renderer.
+   *
+   * WebGPU implementations will eventually release resources when the
+   * corresponding JS objects are garbage-collected. However, in SPA-style
+   * mounts/unmounts we want to proactively destroy buffers/textures to avoid
+   * accumulating GPU memory (and to prevent device-loss due to memory pressure
+   * on mobile browsers).
+   *
+   * This method is intentionally idempotent.
+   */
+  destroy() {
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
+
+    // Suppress teardown-time warnings from async readback helpers.
+    this._suppressAsyncErrors = true;
+
+    const tryDestroy = (obj) => {
+      try {
+        if (obj && typeof obj.destroy === "function") obj.destroy();
+      } catch (_) {}
+    };
+
+    // Grid-sized resources (including readback rings and AABB staging).
+    try {
+      destroyGridResourcesImpl(this);
+    } catch (_) {}
+
+    // Per-app resources
+    tryDestroy(this.cubeVertexBuffer);
+    this.cubeVertexBuffer = null;
+    tryDestroy(this.cubeIndexBuffer);
+    this.cubeIndexBuffer = null;
+
+    tryDestroy(this.uniformBuffer);
+    this.uniformBuffer = null;
+
+    tryDestroy(this.indirectArgsBuffer);
+    this.indirectArgsBuffer = null;
+    tryDestroy(this.drawArgsParamsBuffer);
+    this.drawArgsParamsBuffer = null;
+
+    tryDestroy(this.gridProjInstanceBuffer);
+    this.gridProjInstanceBuffer = null;
+
+    tryDestroy(this.depthTexture);
+    this.depthTexture = null;
+    this.depthTextureView = null;
+
+    // Pipelines/bind groups/shader modules do not have explicit destroy calls,
+    // but clearing references allows GC to reclaim associated JS objects.
+    this.bgPipeline = null;
+    this.renderPipeline = null;
+    this.computePipeline = null;
+    this.extractPipeline = null;
+    this.initPipeline = null;
+    this.drawArgsPipeline = null;
+    this.aabbPipeline = null;
+    this.aabbArgsPipeline = null;
+    this.gridProjPipeline = null;
+
+    this.bgBindGroup = null;
+    this.cellBindGroup = null;
+    this.drawArgsBindGroup = null;
+    this.gridProjBindGroup = null;
+    this.computeBindGroups = [null, null];
+    this.extractBindGroups = [null, null];
+    this.initBindGroups = [null, null];
+
+    try {
+      this._shaderModuleCache.clear();
+    } catch (_) {}
+    this._ensureEssentialPipelinesPromise = null;
+    this._ensureAabbPipelinesPromise = null;
+
+    // Drop WebGPU device/context references.
+    this._canvasConfig = null;
+    this.context = null;
+    this.device = null;
+    this.onDeviceLost = null;
+
+    // Release BufferManager scratch references (and detach device).
+    try {
+      if (this._buffers && typeof this._buffers.destroy === "function") {
+        this._buffers.destroy();
+      } else if (this._buffers && typeof this._buffers.setDevice === "function") {
+        this._buffers.setDevice(null);
+      }
+    } catch (_) {}
   }
 
   // ----------------------------

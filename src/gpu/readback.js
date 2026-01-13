@@ -187,7 +187,14 @@ export function startReadback(r, slot, stepGeneration) {
       r.lastReadbackGeneration = stepGeneration;
     })
     .catch((e) => {
-      console.warn("Stats readback failed:", e);
+      // In normal operation, surface readback failures because they can hint at
+      // device loss, invalid buffer states, or backend bugs.
+      //
+      // During teardown (renderer.destroy()), buffers may be destroyed while
+      // mapAsync() is still pending; suppress warnings in that case.
+      if (!r._suppressAsyncErrors) {
+        console.warn("Stats readback failed:", e);
+      }
       try {
         popBuf.unmap();
       } catch (_) {}

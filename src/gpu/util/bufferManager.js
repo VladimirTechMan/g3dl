@@ -34,10 +34,28 @@ export class BufferManager {
   /**
    * Attach the GPUDevice used for buffer creation and writes.
    *
-   * @param {GPUDevice} device
+   * @param {GPUDevice|null} device
    */
   setDevice(device) {
-    this.device = device;
+    this.device = device || null;
+  }
+
+  /**
+   * Release references held by this manager.
+   *
+   * WebGPU resources are owned by the renderer. This method exists to support
+   * renderer.destroy() for SPA-style unmounts (where we want to allow garbage
+   * collection of JS-side objects promptly).
+   */
+  destroy() {
+    this.device = null;
+    this._scratch = null;
+    this._scratchU32 = null;
+    this._scratchF32 = null;
+
+    // Reset debug bookkeeping.
+    this._bufferMeta = new WeakMap();
+    this._warnedUnregisteredWrite = false;
   }
 
   _assertDevice() {

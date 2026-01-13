@@ -66,6 +66,17 @@ const {
   header,
 } = dom;
 
+/**
+ * App lifetime controller used to manage global event listeners and teardown.
+ *
+ * All "global" listeners in this module should be registered with APP_SIGNAL so they
+ * are removed automatically when destroyApp() runs (e.g., on page unload or in an SPA
+ * unmount scenario).
+ */
+const APP_ABORT = new AbortController();
+const APP_SIGNAL = APP_ABORT.signal;
+
+
 // iOS/iPadOS detection (including iPadOS reporting as Mac)
 const IS_IOS = (() => {
   const ua = navigator.userAgent || "";
@@ -83,7 +94,7 @@ const IS_IOS = (() => {
  *
  * This does not attempt to control Safari zoom; it only keeps the stats panel in view.
  */
-const scheduleStatsViewportPin = (() => {
+function createStatsViewportPin({ signal }) {
   if (!IS_IOS || !statsPanel || !window.visualViewport) return () => {};
 
   const vv = window.visualViewport;
@@ -104,7 +115,6 @@ const scheduleStatsViewportPin = (() => {
     const insetLeft = readCssPxVar("--hud-inset-left", 24);
     const insetBottom = readCssPxVar("--hud-inset-bottom", 24);
 
-    // Position in layout CSS pixels, aligned to the *visual* viewport.
     const left = Math.max(0, vv.offsetLeft + insetLeft);
     const top = Math.max(
       0,
@@ -123,15 +133,17 @@ const scheduleStatsViewportPin = (() => {
     rafId = requestAnimationFrame(update);
   }
 
-  vv.addEventListener("resize", schedule, { passive: true });
-  vv.addEventListener("scroll", schedule, { passive: true });
-  window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("orientationchange", schedule, { passive: true });
+  // Keep the panel pinned during visual viewport panning/zooming.
+  vv.addEventListener("resize", schedule, { passive: true, signal });
+  vv.addEventListener("scroll", schedule, { passive: true, signal });
 
   // Initial placement
   schedule();
   return schedule;
-})();
+}
+
+const scheduleStatsViewportPin = createStatsViewportPin({ signal: APP_SIGNAL });
+
 
 // Game rule presets (definition lives in settings.js)
 const presets = RULE_PRESETS;
@@ -157,6 +169,7 @@ let urlSync = null;
 function requestUrlSync() {
   if (urlSync) urlSync.request();
 }
+
 
 async function handleCopyUrlButton() {
   return copySettingsUrlToClipboard(dom, {
@@ -189,11 +202,116 @@ function syncControlsWidthToButtonRow() {
   controls.style.width = `${target}px`;
 }
 
+/**
+ * Coalesce resize/orientation events into a single rAF pass.
+ * This avoids redundant layout reads on mobile and ensures swapchain reconfigure
+ * (via loop.notifyResizeEvent()) happens at most once per frame.
+ */
+let resizeWorkRafId = 0;
+function scheduleResizeWork() {
+  if (resizeWorkRafId) return;
+  resizeWorkRafId = requestAnimationFrame(() => {
+    resizeWorkRafId = 0;
+    matchHeaderWidths();
+    syncControlsWidthToButtonRow();
+    scheduleStatsViewportPin();
+    if (loop) loop.notifyResizeEvent();
+    else requestRender(true);
+  });
+}
+
+
 // State
 let renderer = null;
 let loop = null;
 let orbitControls = null;
 let screenShow = null;
+
+// UI bindings are installed once during init(); kept here so destroyApp() can tear them down.
+let uiBindings = null;
+let appDestroyed = false;
+
+/**
+ * Tear down global listeners and stop any scheduled work.
+ *
+ * This is primarily future-proofing for SPA-style mounts/unmounts and for defensive
+ * cleanup on page unload. It is safe to call multiple times.
+ */
+function destroyApp(_reason = "") {
+  if (appDestroyed) return;
+  appDestroyed = true;
+
+  // Stop global listeners first to prevent late resize/interaction events from
+  // racing with teardown logic.
+  try {
+    APP_ABORT.abort();
+  } catch (_) {
+    // ignore
+  }
+
+  // Cancel any coalesced resize pass that has not run yet.
+  try {
+    if (resizeWorkRafId) {
+      cancelAnimationFrame(resizeWorkRafId);
+      resizeWorkRafId = 0;
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    // Stop autopilot and clear any pending fade timers.
+    if (screenShow) screenShow.stop(true);
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (loop && typeof loop.destroy === "function") loop.destroy();
+    else if (loop) loop.stopPlaying();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (orbitControls) orbitControls.destroy();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (uiBindings && typeof uiBindings.destroy === "function") uiBindings.destroy();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (renderer && typeof renderer.destroy === "function") renderer.destroy();
+  } catch (_) {
+    // ignore
+  }
+
+  renderer = null;
+  loop = null;
+  orbitControls = null;
+  screenShow = null;
+  uiBindings = null;
+}
+
+// Defensive cleanup on navigation away.
+window.addEventListener(
+  "pagehide",
+  (e) => {
+    // If the page is being placed into the back/forward cache (bfcache), avoid tearing
+    // down; the runtime will resume with listeners intact when restored.
+    if (e && e.persisted) return;
+    destroyApp("pagehide");
+  },
+  { passive: true, signal: APP_SIGNAL },
+);
+window.addEventListener("beforeunload", () => destroyApp("beforeunload"), {
+  signal: APP_SIGNAL,
+});
 
 // Central mutable state (simulation + settings + screenshow).
 const state = createAppState();
@@ -424,31 +542,22 @@ async function init() {
     fullscreenBtn.title = "Fullscreen not supported on this device";
   }
 
-  // Match header title width to credit line
-  matchHeaderWidths();
-  window.addEventListener("resize", matchHeaderWidths);
+  // Initial layout pass.
+  // Use rAF so measurements happen after the first layout.
+  scheduleResizeWork();
 
-  // Keep the WebGPU swapchain/depth buffer in sync with layout and orientation changes.
-  const handleAppResize = () => {
-    if (loop) loop.notifyResizeEvent();
-    else requestRender(true);
-  };
-  window.addEventListener("resize", handleAppResize, { passive: true });
-  window.addEventListener("orientationchange", handleAppResize, {
+  // Coalesce resize/orientation changes into a single rAF-driven pass.
+  window.addEventListener("resize", scheduleResizeWork, { passive: true, signal: APP_SIGNAL });
+  window.addEventListener("orientationchange", scheduleResizeWork, {
     passive: true,
+    signal: APP_SIGNAL,
   });
   if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", handleAppResize, {
+    window.visualViewport.addEventListener("resize", scheduleResizeWork, {
       passive: true,
+      signal: APP_SIGNAL,
     });
   }
-
-  // Keep the controls container width aligned to the button row.
-  // Use rAF to ensure layout is settled.
-  requestAnimationFrame(syncControlsWidthToButtonRow);
-  window.addEventListener("resize", () =>
-    requestAnimationFrame(syncControlsWidthToButtonRow),
-  );
 
   setupEventListeners();
   // Screen show nav lock is applied once ScreenShowController is constructed.
@@ -583,7 +692,7 @@ function showNotSupportedMessage(reason) {
  * Set up all event listeners
  */
 function setupEventListeners() {
-  const ui = bindUI(dom, {
+  uiBindings = bindUI(dom, {
     step,
     togglePlay,
     reset,
@@ -618,7 +727,8 @@ function setupEventListeners() {
     },
   });
 
-  closeSettingsAndHelpPanels = ui.closeSettingsAndHelpPanels;
+  closeSettingsAndHelpPanels = uiBindings.closeSettingsAndHelpPanels;
+  return uiBindings;
 }
 
 
@@ -847,8 +957,8 @@ function toggleFullscreen() {
   }
 }
 
-document.addEventListener("fullscreenchange", updateFullscreenIcons);
-document.addEventListener("webkitfullscreenchange", updateFullscreenIcons);
+document.addEventListener("fullscreenchange", updateFullscreenIcons, { signal: APP_SIGNAL });
+document.addEventListener("webkitfullscreenchange", updateFullscreenIcons, { signal: APP_SIGNAL });
 
 /**
  * Toggle play/pause

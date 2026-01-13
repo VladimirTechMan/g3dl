@@ -78,6 +78,7 @@ To share a configuration, use the **Copy URL with settings** button at the botto
 - **Correct rendering for dense states**: the living-cell instance list buffer is sized for the full grid (worst-case: all cells alive). This avoids silent truncation that can make rendering disagree with simulation results.
 - **Resize correctness**: when the canvas backing size changes (resize/orientation/devicePixelRatio), the WebGPU canvas context is reconfigured and the depth buffer is recreated.
 - **Responsiveness**: rendering is scheduled on-demand (invalidation-based) rather than continuously. In fast play mode, simulation steps are optionally paced using `queue.onSubmittedWorkDone()` to prevent unbounded GPU queue growth on slower/mobile devices.
+- **Teardown (SPA embeds)**: `destroyApp()` (in `src/app/app.js`) stops timers/listeners and calls `renderer.destroy()` to proactively release GPU buffers/textures. This is defensive hygiene for apps that mount/unmount the simulator without a full page reload.
 
 ## Navigation and keyboard shortcuts
 
