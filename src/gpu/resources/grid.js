@@ -159,7 +159,11 @@ export function createGridBuffers(r) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   r.initParamsBuffer = r._createBuffer("initParamsBuffer", {
-    size: G3DL_LAYOUT.PARAMS.SIM.BYTES,
+    // NOTE: INIT and SIM parameter blocks are currently the same size, but they are
+    // semantically different (and may diverge in the future). Allocate using the
+    // INIT layout constant so that any future layout changes cannot silently
+    // under-allocate this buffer.
+    size: G3DL_LAYOUT.PARAMS.INIT.BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 }

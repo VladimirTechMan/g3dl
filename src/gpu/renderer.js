@@ -49,6 +49,17 @@ import {
 } from "./cameraControls.js";
 
 
+// Packed cell coordinate format: 10 bits per axis.
+//
+// The GPU compaction path stores live cell coordinates in a single u32:
+//   x (10 bits) | y (10 bits) << 10 | z (10 bits) << 20
+// See src/gpu/shaders.js for the WGSL packing/unpacking logic.
+//
+// This supports coordinates 0..1023, so gridSize must be <= 1024.
+const PACKED_CELL_AXIS_BITS = 10;
+const MAX_PACKED_GRID_SIZE = 1 << PACKED_CELL_AXIS_BITS;
+
+
 /**
  * Game of 3D Life - WebGPU Renderer
  * Cube rendering with packed cell data (4x memory reduction)
@@ -399,6 +410,12 @@ export class WebGPURenderer {
     const maxCellsPerBuffer = Math.floor(perBufferLimit / 4);
     const maxGridFromLimits = Math.floor(Math.cbrt(maxCellsPerBuffer));
     let maxGrid = Math.max(4, Math.min(256, maxGridFromLimits));
+
+    // Additional hard safety cap from the packed live-cell coordinate format.
+    // (Today we clamp to <= 256 anyway, but we keep this explicit so that future
+    // grid-size expansions cannot silently break rendering.)
+    maxGrid = Math.min(maxGrid, MAX_PACKED_GRID_SIZE);
+
 
     // Conservative, best-effort cap based on expected total GPU memory pressure.
     // WebGPU does not expose total VRAM; this is a heuristic to reduce device-loss on mobile.
@@ -869,6 +886,13 @@ export class WebGPURenderer {
 
   setGridSize(size) {
     const max = this.getMaxSupportedGridSize();
+    if (size > MAX_PACKED_GRID_SIZE) {
+      throw new Error(
+        `Grid size ${size} exceeds packed-coordinate limit (${MAX_PACKED_GRID_SIZE}). ` +
+          `Rendering packs x/y/z into 10 bits each (0..1023).`
+      );
+    }
+
     if (size > max) {
       throw new Error(`Grid size ${size} exceeds maximum (${max})`);
     }
@@ -1233,7 +1257,7 @@ export class WebGPURenderer {
   }
 
   getMaxSupportedGridSize() {
-    return this.maxSupportedGridSize || 256;
+    return Math.min(this.maxSupportedGridSize || 256, MAX_PACKED_GRID_SIZE);
   }
 
   setCellColors(topHex, bottomHex) {

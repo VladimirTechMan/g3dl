@@ -69,6 +69,8 @@ Open `index.html` in a supported browser (must be served over HTTPS, even if fro
 
 Note: The maximum grid size depends on device WebGPU limits; the UI will attempt clamping the value accordingly.
 
+Rendering compacts live cells into a packed `u32` list for GPU-driven instanced drawing (10 bits per axis), so `gridSize` is additionally capped at 1024.
+
 To share a configuration, use the **Copy URL with settings** button at the bottom of the Settings panel.
 
 ## Implementation notes
