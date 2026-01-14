@@ -1,6 +1,6 @@
 # Game of 3D Life
 
-Game of 3D Life is a 3D cellular automaton inspired by Conway's Game of Life, running in modern web browsers. Simulation and rendering run entirely on the GPU via WebGPU.
+Game of 3D Life is a [3D cellular automaton](https://content.wolfram.com/sites/13/2018/02/01-3-1.pdf) inspired by [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life), running in modern web browsers. Simulation and rendering run entirely on the GPU via [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API).
 
 ## Features
 
