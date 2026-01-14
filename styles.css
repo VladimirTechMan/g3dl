@@ -49,6 +49,15 @@
   --corner-inset-left: max(var(--corner-pad), var(--safe-inset-left));
   --corner-inset-right: max(var(--corner-pad), var(--safe-inset-right));
   --corner-inset-bottom: max(var(--corner-pad), var(--safe-inset-bottom));
+
+  /*
+   * Insets used by the iOS `visualViewport` pinning logic (see createStatsViewportPin() in src/app/app.js).
+   *
+   * These variables exist so the JS pinning code can respect the same responsive layout rules
+   * as the CSS (including the mobile-specific tighter corner spacing).
+   */
+  --stats-inset-left: var(--hud-inset-left);
+  --stats-inset-bottom: var(--hud-inset-bottom);
 }
 
 *,
@@ -198,7 +207,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   padding-left: var(--controls-edge-pad);
-  padding-right: calc(var(--controls-edge-pad) + 6px);
+  padding-right: var(--controls-edge-pad);
 
   --panel-scrollbar-width: 10px;
   --panel-scrollbar-track-bg: rgba(255, 255, 255, 0.06);
@@ -800,8 +809,8 @@ input[type="range"]::-moz-range-thumb {
 /* Stats */
 #stats {
   position: fixed;
-  bottom: var(--hud-inset-bottom);
-  left: var(--hud-inset-left);
+  bottom: var(--stats-inset-bottom);
+  left: var(--stats-inset-left);
   pointer-events: auto;
   touch-action: auto;
   z-index: 90;
@@ -853,26 +862,36 @@ input[type="range"]::-moz-range-thumb {
   position: fixed;
   right: var(--corner-inset-right);
   bottom: var(--corner-inset-bottom);
-  width: 26px;
-  height: 26px;
+  /* Desktop default is small; touch devices override for ergonomics. */
+  width: 34px;
+  height: 24px;
   padding: 0;
-  background: #ffffff;
-  border: none;
-  border-radius: 50%;
-  color: #000000;
+  /* Match the translucent, blurred "glass" chrome used by the stats panel. */
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
   z-index: 95;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast);
   font-size: 15px;
   font-weight: 700;
   font-style: italic;
   font-family: Georgia, serif;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 #infoBtn:hover {
-  /* Keep white background; avoid color-shift on hover. */
+  background: rgba(18, 18, 26, 0.78);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 #infoBtn:active {
@@ -880,7 +899,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #infoBtn.active {
-  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.35);
+  /* Keep the same chrome when the About panel is open. */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+#infoBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
 }
 
 /* Touch ergonomics (coarse-pointer devices) */
@@ -953,7 +978,15 @@ textarea {
     /* Shared mobile margin values used to visually align corner UI elements. */
     --mobile-edge-offset-x: var(--corner-inset-right);
     --mobile-edge-offset-y: var(--corner-inset-bottom);
-}
+
+    /*
+     * Match the stats panel positioning to the same corner-spacing rules used by other mobile HUD elements.
+     * This is also consumed by the iOS `visualViewport` pinning logic.
+     */
+    --stats-inset-left: max(var(--corner-inset-left), var(--mobile-edge-offset-x));
+    --stats-inset-bottom: var(--corner-inset-bottom);
+  }
+
   /* Panel legibility on touch devices (iPhone/iPad): use explicit sizes so it is obvious
      and to avoid any iOS text autosizing edge cases. */
   .panel-body {
@@ -974,9 +1007,12 @@ textarea {
   /* About/Info button: meet touch target guidance */
   #infoBtn {
     display: flex;
-    width: 48px;
-    height: 48px;
+    right: var(--corner-inset-right);
+    bottom: var(--corner-inset-bottom);
+    width: var(--icon-btn-size);
+    height: var(--icon-btn-size);
     font-size: 22px;
+    border-radius: 14px;
   }
 
   /* On touch devices, align the primary corner panels to the same viewport margins as the About button.
@@ -987,8 +1023,8 @@ textarea {
   }
 
   #stats {
-    bottom: var(--mobile-edge-offset-y);
-    left: max(var(--corner-inset-left), var(--mobile-edge-offset-x));
+    bottom: var(--stats-inset-bottom);
+    left: var(--stats-inset-left);
   }
 
   /* Keep the header hidden unless explicitly toggled via the "i" button. */
@@ -1002,20 +1038,18 @@ textarea {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(92vw, 640px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
-    max-width: min(92vw, 640px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
     padding: 16px 22px;
     z-index: 120;
   }
 
   #header.visible h1 {
     font-size: clamp(22px, 7vw, 34px);
-    white-space: normal;
+    white-space: nowrap;
   }
 
   #header.visible .credit {
     font-size: 0.95rem;
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.25;
   }
 
@@ -1098,13 +1132,5 @@ textarea {
   #settings-panel .checkbox-label {
     min-height: 28px;
     padding: 0.25rem 0.2rem;
-  }
-}
-
-/* Landscape phones: keep the About panel visually balanced (avoid excessive width). */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
-  #header.visible {
-    width: min(72vw, 520px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
-    max-width: min(72vw, 520px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
   }
 }

@@ -150,8 +150,10 @@ function createStatsViewportPin({ signal }) {
   function update() {
     rafId = 0;
 
-    const insetBottom = resolveCssLengthPx("var(--hud-inset-bottom)", { axis: "bottom", fallbackPx: 24 });
-    const insetLeft = resolveCssLengthPx("var(--hud-inset-left)", { axis: "left", fallbackPx: 24 });
+    // IMPORTANT: use the same responsive inset values as the CSS, so the pinned position matches
+    // the on-screen layout (including the tighter 12px corner spacing on mobile).
+    const insetBottom = resolveCssLengthPx("var(--stats-inset-bottom)", { axis: "bottom", fallbackPx: 24 });
+    const insetLeft = resolveCssLengthPx("var(--stats-inset-left)", { axis: "left", fallbackPx: 24 });
 
     const left = Math.max(0, vv.offsetLeft + insetLeft);
     const top = Math.max(
