@@ -30,11 +30,25 @@
   /* Typography scale for UI elements */
   --panel-font-size: 0.95rem;
   --panel-line-height: 1.4;
-  /* HUD insets for corner UI elements */
-  /* Include safe-area insets where supported (iOS notch/home indicator). */
-  --hud-inset-left: max(24px, calc(env(safe-area-inset-left, 0px) + 24px));
-  --hud-inset-right: max(24px, calc(env(safe-area-inset-right, 0px) + 24px));
-  --hud-inset-bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  /* Safe-area + comfort insets for HUD elements (iOS notch / Dynamic Island / home indicator). */
+  --safe-inset-top: env(safe-area-inset-top, 0px);
+  --safe-inset-left: env(safe-area-inset-left, 0px);
+  --safe-inset-right: env(safe-area-inset-right, 0px);
+  --safe-inset-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Larger spacing for panels / multi-button chrome. */
+  --hud-pad: 24px;
+  --hud-inset-top: max(var(--hud-pad), var(--safe-inset-top));
+  --hud-inset-left: max(var(--hud-pad), var(--safe-inset-left));
+  --hud-inset-right: max(var(--hud-pad), var(--safe-inset-right));
+  --hud-inset-bottom: max(var(--hud-pad), var(--safe-inset-bottom));
+
+  /* Tighter spacing for single corner affordances (e.g., the About "i" button). */
+  --corner-pad: 12px;
+  --corner-inset-top: max(var(--corner-pad), var(--safe-inset-top));
+  --corner-inset-left: max(var(--corner-pad), var(--safe-inset-left));
+  --corner-inset-right: max(var(--corner-pad), var(--safe-inset-right));
+  --corner-inset-bottom: max(var(--corner-pad), var(--safe-inset-bottom));
 }
 
 *,
@@ -112,8 +126,8 @@ body {
 /* Header */
 #header {
   position: absolute;
-  top: 24px;
-  left: 24px;
+  top: var(--hud-inset-top);
+  left: var(--hud-inset-left);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -155,8 +169,8 @@ body {
 /* Controls Container (chrome + positioning) */
 #controls {
   position: absolute;
-  top: 24px;
-  right: 24px;
+  top: var(--hud-inset-top);
+  right: var(--hud-inset-right);
   background: rgba(18, 18, 26, 0.7);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -379,6 +393,10 @@ body {
 
 .icon-btn:disabled:active {
   transform: none;
+}
+
+.playing #playBtn {
+  background: var(--accent-primary);
 }
 
 /* Settings button active state */
@@ -833,8 +851,8 @@ input[type="range"]::-moz-range-thumb {
 #infoBtn {
   display: none;
   position: fixed;
-  right: var(--hud-inset-right);
-  bottom: var(--hud-inset-bottom);
+  right: var(--corner-inset-right);
+  bottom: var(--corner-inset-bottom);
   width: 26px;
   height: 26px;
   padding: 0;
@@ -931,7 +949,11 @@ textarea {
 
     /* Slightly tighten edge padding to offset the wider buttons. */
     --controls-edge-pad: 14px;
-  }
+  
+    /* Shared mobile margin values used to visually align corner UI elements. */
+    --mobile-edge-offset-x: var(--corner-inset-right);
+    --mobile-edge-offset-y: var(--corner-inset-bottom);
+}
   /* Panel legibility on touch devices (iPhone/iPad): use explicit sizes so it is obvious
      and to avoid any iOS text autosizing edge cases. */
   .panel-body {
@@ -957,6 +979,18 @@ textarea {
     font-size: 22px;
   }
 
+  /* On touch devices, align the primary corner panels to the same viewport margins as the About button.
+     Note: we clamp to each edge’s safe-area inset where necessary to avoid clipping under the notch. */
+  #controls {
+    right: var(--mobile-edge-offset-x);
+    top: max(var(--corner-inset-top), var(--mobile-edge-offset-y));
+  }
+
+  #stats {
+    bottom: var(--mobile-edge-offset-y);
+    left: max(var(--corner-inset-left), var(--mobile-edge-offset-x));
+  }
+
   /* Keep the header hidden unless explicitly toggled via the "i" button. */
   #header {
     display: none;
@@ -968,8 +1002,8 @@ textarea {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(80vw, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
-    max-width: min(80vw, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+    width: min(92vw, 640px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+    max-width: min(92vw, 640px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
     padding: 16px 22px;
     z-index: 120;
   }
@@ -1067,6 +1101,10 @@ textarea {
   }
 }
 
-.playing #playBtn {
-  background: var(--accent-primary);
+/* Landscape phones: keep the About panel visually balanced (avoid excessive width). */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  #header.visible {
+    width: min(72vw, 520px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+    max-width: min(72vw, 520px, calc(100vw - var(--hud-inset-left) - var(--hud-inset-right)));
+  }
 }
