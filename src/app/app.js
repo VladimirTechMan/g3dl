@@ -781,6 +781,10 @@ function setupEventListeners() {
     handleInitSizeKeydown,
     handleDensityPreview,
     handleDensityChange,
+    handleDensityPointerDown,
+    handleDensityPointerUpGlobal,
+    handleDensityBlur,
+    handleDensityMouseLeave,
     handleCellColorChange,
     handleBgColorChange,
     handlePresetChange,
@@ -1269,11 +1273,18 @@ function handleInitSizeKeydown(e) {
   blurOnEnter(e, initSizeInput);
 }
 
+let densityDragActive = false;
+
 /**
  * Preview state.settings.density value while dragging (show tooltip only)
  */
 function handleDensityPreview() {
   const previewValue = parseInt(densitySlider.value, 10);
+
+  // Keep tip visible while the user is interacting with the slider.
+  // (If a previous release scheduled a hide timeout, cancel it.)
+  clearTimeout(densityTip.hideTimeout);
+
   densityTip.textContent = previewValue + "%";
   densityTip.classList.add("visible");
 }
@@ -1296,6 +1307,82 @@ function handleDensityChange() {
   if (!state.sim.isPlaying) {
     reset();
   }
+}
+
+
+/**
+ * Mark density slider interaction as active (for robust tooltip teardown).
+ * This runs on pointerdown so we can reliably detect releases even if the pointer
+ * leaves the slider element.
+ */
+function handleDensityPointerDown(e) {
+  densityDragActive = true;
+
+  // Attempt pointer capture so that some engines will still dispatch pointerup
+  // to the slider even if the pointer leaves the control while dragging.
+  try {
+    if (densitySlider && densitySlider.setPointerCapture && e && e.pointerId != null) {
+      densitySlider.setPointerCapture(e.pointerId);
+    }
+  } catch (_) {
+    // Ignore capture failures (unsupported or blocked by the element).
+  }
+
+  clearTimeout(densityTip.hideTimeout);
+  densityTip.classList.add("visible");
+}
+
+/**
+ * Commit density if the slider value differs from state, then schedule tip hide.
+ * This is wired to a global pointerup so the tip does not get stuck visible when
+ * the release occurs outside the input element.
+ */
+function handleDensityPointerUpGlobal() {
+  if (!densityTip.classList.contains("visible")) return;
+
+  densityDragActive = false;
+
+  const sliderPct = parseInt(densitySlider.value, 10);
+  const statePct = Math.round(state.settings.density * 100);
+
+  // If the release did not trigger a native 'change' (browser quirk), commit here.
+  if (Number.isFinite(sliderPct) && sliderPct !== statePct) {
+    handleDensityChange();
+    return;
+  }
+
+  clearTimeout(densityTip.hideTimeout);
+  densityTip.hideTimeout = setTimeout(() => {
+    densityTip.classList.remove("visible");
+  }, 600);
+}
+
+/**
+ * Hide the density tip on focus loss (keyboard navigation, clicking elsewhere).
+ */
+function handleDensityBlur() {
+  densityDragActive = false;
+
+  if (!densityTip.classList.contains("visible")) return;
+
+  clearTimeout(densityTip.hideTimeout);
+  densityTip.hideTimeout = setTimeout(() => {
+    densityTip.classList.remove("visible");
+  }, 250);
+}
+
+/**
+ * Hide the density tip when the pointer leaves the slider (desktop hover case),
+ * but do not interfere with an active drag.
+ */
+function handleDensityMouseLeave() {
+  if (densityDragActive) return;
+  if (!densityTip.classList.contains("visible")) return;
+
+  clearTimeout(densityTip.hideTimeout);
+  densityTip.hideTimeout = setTimeout(() => {
+    densityTip.classList.remove("visible");
+  }, 250);
 }
 
 /**

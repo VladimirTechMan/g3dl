@@ -19,6 +19,9 @@
   --controls-pad-y: 16px;
   --controls-edge-pad: 16px;
   --icon-btn-size: 42px;
+  /* Range input sizing (track + thumb). */
+  --range-track-height: 4px;
+  --range-thumb-size: 16px;
   --icon-btn-gap: 6px;
   --controls-button-count: 6;
   --controls-button-gap-count: 5;
@@ -173,8 +176,6 @@ body {
 }
 
 #header .credit {
-  font-size: 11px;
-  color: var(--text-secondary);
   white-space: nowrap;
   letter-spacing: 0.3px;
   text-align: center;
@@ -288,17 +289,15 @@ body {
   color: var(--text-primary);
 }
 
-#help-panel p {
+#help-panel p,
+#help-panel ul {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.35;
 }
 
 #help-panel ul {
-  margin: 0;
   padding-left: 18px;
-  color: var(--text-secondary);
-  line-height: 1.35;
 }
 
 #help-panel li {
@@ -513,50 +512,47 @@ body {
 
 input[type="range"] {
   width: 100%;
-  height: 4px;
+  height: var(--range-thumb-size);
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(74, 158, 255, 0.3);
-  border-radius: 2px;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   cursor: pointer;
 }
-
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
+  height: var(--range-track-height);
   background: rgba(74, 158, 255, 0.3);
-  border-radius: 2px;
+  border-radius: calc(var(--range-track-height) / 2);
 }
-
 input[type="range"]::-moz-range-track {
-  height: 4px;
+  height: var(--range-track-height);
   background: rgba(74, 158, 255, 0.3);
-  border-radius: 2px;
+  border-radius: calc(var(--range-track-height) / 2);
 }
-
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: var(--range-thumb-size);
+  height: var(--range-thumb-size);
   background: var(--accent-primary);
+  border: none;
   border-radius: 50%;
   cursor: pointer;
   transition: transform var(--transition-fast);
-  margin-top: -6px; /* Center thumb on track: (16px - 4px) / 2 = 6px */
+  margin-top: calc((var(--range-track-height) - var(--range-thumb-size)) / 2);
 }
-
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--range-thumb-size);
+  height: var(--range-thumb-size);
   background: var(--accent-primary);
   border: none;
   border-radius: 50%;
   cursor: pointer;
 }
-
 /* Rules Group */
 .rules-group {
   gap: 6px;
@@ -679,7 +675,6 @@ input[type="range"]::-moz-range-thumb {
   border: none;
   border-radius: 3px;
 }
-
 .color-picker::-moz-color-swatch {
   border: none;
   border-radius: 3px;
