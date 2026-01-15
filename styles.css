@@ -980,13 +980,6 @@ textarea {
     --stats-inset-bottom: var(--corner-inset-bottom);
   }
 
-  /* Panel legibility on touch devices (iPhone/iPad): use explicit sizes so it is obvious
-     and to avoid any iOS text autosizing edge cases. */
-  .panel-body {
-    font-size: var(--panel-font-size);
-    line-height: var(--panel-line-height);
-  }
-
   /* iOS Safari: prevent focus auto-zoom by keeping form controls at >= 16px.
      We intentionally match the panel font size for readability. */
   .panel-body input[type="text"],
@@ -1046,22 +1039,19 @@ textarea {
     line-height: 1.25;
   }
 
-  /* Touch targets */
-  #playBtn,
-  #resetBtn,
-  #stepBtn,
-  #fullscreenBtn,
-  #settingsBtn,
-  /* Help button: keep large hit target and readable "?" */
+  /* Touch targets: keep control buttons comfortable on touch */
+  .icon-btn {
+    min-width: var(--icon-btn-size);
+    min-height: var(--icon-btn-size);
+  }
+
+  /* Help button: keep readable "?" */
   #helpBtn {
     font-size: 22px;
     font-weight: 800;
     line-height: 1;
-    width: var(--icon-btn-size);
-    height: var(--icon-btn-size);
-    min-width: var(--icon-btn-size);
-    min-height: var(--icon-btn-size);
   }
+
 
   /* iOS Safari: avoid focus auto-zoom by keeping form controls at >= 16px. */
   #settings-panel .input-wrapper input[type="text"],
@@ -1087,17 +1077,6 @@ textarea {
     padding: 2px;
   }
 
-  /* Larger checkbox box (separate from label hit area). */
-  #settings-panel .checkbox-label input[type="checkbox"] {
-    width: 28px;
-    height: 28px;
-  }
-
-  .color-picker {
-    width: 44px;
-    height: 44px;
-  }
-
   /* Larger slider thumb/track for touch */
   #settings-panel input[type="range"] {
     height: 28px;
@@ -1116,7 +1095,7 @@ textarea {
     margin-top: -11px; /* Center thumb on 6px track: (28 - 6) / 2 */
   }
 
-  /* Larger checkbox hit area */
+  /* Larger checkbox box (label hit area is handled by padding/min-height below). */
   #settings-panel .checkbox-label input[type="checkbox"] {
     width: 28px;
     height: 28px;
