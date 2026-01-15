@@ -29,7 +29,6 @@ import {
 import { rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
 import {
   updateFrameUniforms as updateFrameUniformsImpl,
-  updateRenderUniforms as updateRenderUniformsImpl,
 } from "./resources/frameUniforms.js";
 import { BufferManager } from "./util/bufferManager.js";
 import {
@@ -228,8 +227,8 @@ export class WebGPURenderer {
     this._eye = new Float32Array(3);
     this._target = new Float32Array(3);
 
-    // Optional camera override (used by Screensaver mode).
-    // When enabled, updateUniforms() uses these explicit vectors instead of the user-controlled trackball camera.
+    // Optional camera override (used by Screen show mode).
+    // When enabled, frame uniform updates use these explicit vectors instead of the user-controlled trackball camera.
     this.cameraOverrideEnabled = false;
     this._overrideEye = new Float32Array(3);
     this._overrideTarget = new Float32Array(3);
@@ -280,20 +279,12 @@ export class WebGPURenderer {
   // CPU -> GPU write helpers
   // ----------------------------
 
-  _registerBuffer(buffer, name, byteLength, usage) {
-    this._buffers.registerBuffer(buffer, name, byteLength, usage);
-  }
-
   _createBuffer(name, desc) {
     return this._buffers.createBuffer(name, desc);
   }
 
   _scratchU32View(count) {
     return this._buffers.scratchU32View(count);
-  }
-
-  _scratchF32View(count) {
-    return this._buffers.scratchF32View(count);
   }
 
   _queueWrite(buffer, offsetBytes, view) {
@@ -1297,13 +1288,6 @@ export class WebGPURenderer {
     this.gridProjectionEnabled = enabled ? 1.0 : 0.0;
   }
 
-  // Grid projection faces are static (6 faces) and are re-generated only when
-  // gridSize/cellSize changes. Visibility is handled by inward-facing winding + culling.
-  updateGridProjectionFaces() {
-    // Kept for backwards compatibility with older call sites.
-    this.rebuildGridProjectionInstances();
-  }
-
   setLanternStrength(strength) {
     // Clamp to sensible range
     const s = Math.max(0.0, Math.min(2.0, Number(strength)));
@@ -1369,12 +1353,6 @@ export class WebGPURenderer {
 
     pass.end();
     this.device.queue.submit([encoder.finish()]);
-  }
-
-  updateUniforms() {
-    // Kept for backwards compatibility with older call sites.
-    // Prefer calling updateFrameUniformsImpl() from render().
-    updateRenderUniformsImpl(this);
   }
 
   resize(options = {}) {

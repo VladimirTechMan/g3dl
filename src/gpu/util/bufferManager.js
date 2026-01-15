@@ -27,8 +27,6 @@ export class BufferManager {
     this._scratch = null;
     /** @type {Uint32Array|null} */
     this._scratchU32 = null;
-    /** @type {Float32Array|null} */
-    this._scratchF32 = null;
   }
 
   /**
@@ -51,7 +49,6 @@ export class BufferManager {
     this.device = null;
     this._scratch = null;
     this._scratchU32 = null;
-    this._scratchF32 = null;
 
     // Reset debug bookkeeping.
     this._bufferMeta = new WeakMap();
@@ -104,7 +101,6 @@ export class BufferManager {
     const next = Math.max(256, minBytes, cur ? cur * 2 : 256);
     this._scratch = new ArrayBuffer(next);
     this._scratchU32 = new Uint32Array(this._scratch);
-    this._scratchF32 = new Float32Array(this._scratch);
   }
 
   /**
@@ -117,18 +113,6 @@ export class BufferManager {
     this._ensureScratchBytes(count * 4);
     // eslint-disable-next-line no-non-null-assertion
     return this._scratchU32.subarray(0, count);
-  }
-
-  /**
-   * Return a scratch Float32Array view of length `count`.
-   *
-   * @param {number} count
-   * @returns {Float32Array}
-   */
-  scratchF32View(count) {
-    this._ensureScratchBytes(count * 4);
-    // eslint-disable-next-line no-non-null-assertion
-    return this._scratchF32.subarray(0, count);
   }
 
   /**
