@@ -46,18 +46,14 @@
   --hud-inset-right: max(var(--hud-pad), var(--safe-inset-right));
   --hud-inset-bottom: max(var(--hud-pad), var(--safe-inset-bottom));
 
-  /* Tighter spacing for single corner affordances (e.g., the About "i" button). */
-  --corner-pad: 12px;
-  --corner-inset-top: max(var(--corner-pad), var(--safe-inset-top));
-  --corner-inset-left: max(var(--corner-pad), var(--safe-inset-left));
-  --corner-inset-right: max(var(--corner-pad), var(--safe-inset-right));
-  --corner-inset-bottom: max(var(--corner-pad), var(--safe-inset-bottom));
-
   /*
    * Insets used by the iOS `visualViewport` pinning logic (see createStatsViewportPin() in src/app/app.js).
    *
    * These variables exist so the JS pinning code can respect the same responsive layout rules
-   * as the CSS (including the mobile-specific tighter corner spacing).
+   * as the CSS.
+   *
+   * On coarse-pointer devices, these are overridden in the mobile media query to match the tighter
+   * corner spacing used by the About ("i") button.
    */
   --stats-inset-left: var(--hud-inset-left);
   --stats-inset-bottom: var(--hud-inset-bottom);
@@ -322,10 +318,6 @@ body {
   text-decoration-color: currentColor;
 }
 
-#help-panel a:hover {
-  text-decoration-color: currentColor;
-}
-
 #help-panel a:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.65);
   outline-offset: 2px;
@@ -419,11 +411,7 @@ body {
 
 /* Speed slider - standalone horizontal layout */
 .slider-label.speed-slider {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
   justify-content: flex-start;
-  gap: 6px;
   width: 100%;
 }
 
@@ -438,7 +426,9 @@ body {
   min-width: 0;
 }
 /* Common label typography for Settings labels. */
-.control-label {
+.control-label,
+.select-label,
+.color-label {
   font-size: inherit;
   color: var(--text-primary);
 }
@@ -450,14 +440,17 @@ body {
   width: 100%;
 }
 
-/* Density slider with tip */
-.density-slider-label {
+/* Horizontal row labels shared by speed slider, density slider, and color labels. */
+.slider-label.speed-slider,
+.density-slider-label,
+.color-label {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 6px;
 }
 
+/* Density slider with tip */
 .density-slider-wrapper {
   position: relative;
   flex: 1;
@@ -555,10 +548,16 @@ input[type="range"]::-moz-range-thumb {
   gap: 12px;
 }
 
+/* Stacked labels used for inputs and selects. */
+.rules-inputs label,
+.size-inputs .input-label,
+.select-label {
+  gap: 6px;
+  margin-bottom: 0;
+}
+
 .size-inputs .input-label {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   gap: 4px;
 }
 
@@ -573,7 +572,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .input-wrapper input[type="number"],
-  .input-wrapper input[type="text"] {
+.input-wrapper input[type="text"] {
   flex: 1;
   width: 100%;
   padding: 8px 10px;
@@ -603,15 +602,6 @@ input[type="range"]::-moz-range-thumb {
 
 /* Also reflect native HTML validity (e.g., min/max) where supported */
 /* Color Labels - match slider-label style */
-.color-label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  font-size: inherit;
-  color: var(--text-primary);
-}
-
 .color-label > span:first-child {
   flex: 1;
 }
@@ -624,9 +614,6 @@ input[type="range"]::-moz-range-thumb {
 
 .gradient-arrow {
   color: var(--text-primary);
-  /* Keep the arrow typography consistent with the surrounding Settings labels. */
-  font-size: inherit;
-  font-weight: inherit;
   opacity: 0.6;
 }
 
@@ -671,11 +658,7 @@ input[type="range"]::-moz-range-thumb {
 .rules-inputs label {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
   gap: 4px;
-  font-size: inherit;
-  color: var(--text-primary);
 }
 
 /* Select dropdown for presets */
@@ -683,8 +666,6 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: inherit;
-  color: var(--text-primary);
   margin-bottom: 0;
 }
 
@@ -812,53 +793,11 @@ input[type="range"]::-moz-range-thumb {
   font-style: italic;
 }
 
-/* Info button (hidden by default; shown on touch devices) */
+/* Info button (mobile only) */
 #infoBtn {
   display: none;
-  position: fixed;
-  right: var(--corner-inset-right);
-  bottom: var(--corner-inset-bottom);
-  /* Desktop default is small; touch devices override for ergonomics. */
-  width: 34px;
-  height: 24px;
-  padding: 0;
-  /* Shared translucent, blurred "glass" chrome (see .glass-chrome). */
-  border-radius: 12px;
-  color: rgba(255, 255, 255, 0.95);
-  cursor: pointer;
-  z-index: 95;
-  transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    background var(--transition-fast),
-    border-color var(--transition-fast);
-  font-size: 15px;
-  font-weight: 700;
-  font-style: italic;
-  font-family: Georgia, serif;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-#infoBtn:hover {
-  background: rgba(18, 18, 26, 0.78);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-#infoBtn:active {
-  transform: scale(0.96);
-}
-
-#infoBtn.active {
-  /* Keep the same chrome when the About panel is open. */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-#infoBtn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.35);
-  outline-offset: 2px;
-}
 
 /* Touch ergonomics (coarse-pointer devices) */
 button,
@@ -926,6 +865,14 @@ textarea {
 
     /* Slightly tighten edge padding to offset the wider buttons. */
     --controls-edge-pad: 14px;
+
+    /* Tighter corner spacing for single affordances (e.g., the About "i" button). */
+    --corner-pad: 12px;
+    --corner-inset-top: max(var(--corner-pad), var(--safe-inset-top));
+    --corner-inset-left: max(var(--corner-pad), var(--safe-inset-left));
+    --corner-inset-right: max(var(--corner-pad), var(--safe-inset-right));
+    --corner-inset-bottom: max(var(--corner-pad), var(--safe-inset-bottom));
+
   
     /* Shared mobile margin values used to visually align corner UI elements. */
     --mobile-edge-offset-x: var(--corner-inset-right);
@@ -947,17 +894,46 @@ textarea {
   .panel-body textarea {
     font-size: var(--panel-font-size);
   }
-
   /* About (mobile): hide the permanent header and use the "i" button instead. */
   /* About/Info button: meet touch target guidance */
   #infoBtn {
     display: flex;
+    position: fixed;
     right: var(--corner-inset-right);
     bottom: var(--corner-inset-bottom);
     width: var(--icon-btn-size);
     height: var(--icon-btn-size);
-    font-size: 22px;
+    padding: 0;
     border-radius: 14px;
+    color: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    z-index: 95;
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast);
+    font-size: 22px;
+    font-weight: 700;
+    font-style: italic;
+    font-family: Georgia, serif;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  #infoBtn:active {
+    transform: scale(0.96);
+  }
+
+  #infoBtn.active {
+    /* Keep the same chrome when the About panel is open. */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  #infoBtn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.35);
+    outline-offset: 2px;
   }
 
   /* On touch devices, align the primary corner panels to the same viewport margins as the About button.
@@ -1036,22 +1012,10 @@ textarea {
     padding: 2px;
   }
 
-  /* Larger slider thumb/track for touch */
-  #settings-panel input[type="range"] {
-    height: 28px;
-    background: transparent;
-  }
-
-  #settings-panel input[type="range"]::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 3px;
-    background: rgba(74, 158, 255, 0.3);
-  }
-
-  #settings-panel input[type="range"]::-webkit-slider-thumb {
-    width: 28px;
-    height: 28px;
-    margin-top: -11px; /* Center thumb on 6px track: (28 - 6) / 2 */
+  /* Larger slider thumb/track for touch: override the CSS variables used by the base range styles. */
+  #settings-panel {
+    --range-track-height: 6px;
+    --range-thumb-size: 28px;
   }
 
   /* Larger checkbox box (label hit area is handled by padding/min-height below). */

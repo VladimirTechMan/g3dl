@@ -157,21 +157,24 @@ export function createPanelManager(dom, handlers) {
     else removePanelOverlay();
   }
 
+  function finalizePanelState() {
+    blurActiveElement();
+    updateOverlay();
+  }
+
   function closeAllPanels() {
     for (const p of PANELS) {
       p.close();
     }
 
-    blurActiveElement();
-    updateOverlay();
+    finalizePanelState();
   }
 
   function closeSettingsAndHelpPanels() {
     PANELS_BY_KEY.settings?.close();
     PANELS_BY_KEY.help?.close();
 
-    blurActiveElement();
-    updateOverlay();
+    finalizePanelState();
   }
 
   function toggleSettingsPanel() {
@@ -224,8 +227,7 @@ export function createPanelManager(dom, handlers) {
 
     // Dismiss About
     about.close();
-    blurActiveElement();
-    updateOverlay();
+    finalizePanelState();
 
     // If the tap was not on the UI controls, swallow it to avoid unintended camera motion.
     if (!(controlsRoot && controlsRoot.contains(/** @type {any} */ (e.target)))) {

@@ -22,7 +22,6 @@ import { bindUI } from "../ui/bindings.js";
 import { OrbitControls } from "./orbitControls.js";
 import { ScreenShowController } from "./screenshow/controller.js";
 
-
 // DOM Elements (cached)
 const {
   canvas,
@@ -396,21 +395,14 @@ const state = createAppState();
 // Used for auto-closing Settings/Help when starting a run or stepping.
 let closeSettingsAndHelpPanels = () => {};
 
-/**
- * Determine whether user camera navigation should be locked.
- *
- * Screen show disables manual navigation only while it is actively running (i.e., while the simulation is playing).
- * When the simulation is paused, navigation remains available even if the Screen show checkbox is enabled.
- *
- * @returns {boolean}
- */
-/**
- * Apply or clear navigation lock UI state.
- * This keeps the cursor neutral and cancels any in-progress drag/pinch state when locking.
- */
 function requestRender(immediate = false) {
   if (!loop) return;
   loop.requestRender(immediate);
+}
+
+function requestRenderAndUrlSync(immediate = false) {
+  requestRender(immediate);
+  requestUrlSync();
 }
 
 
@@ -441,8 +433,7 @@ function disableScreenShowDueToEmpty() {
 
   if (screenShow) screenShow.setEnabled(false);
 
-  requestRender(true);
-  requestUrlSync();
+  requestRenderAndUrlSync(true);
 }
 
 /**
@@ -1035,8 +1026,12 @@ function toggleFullscreen() {
   }
 }
 
-document.addEventListener("fullscreenchange", updateFullscreenIcons, { signal: APP_SIGNAL });
-document.addEventListener("webkitfullscreenchange", updateFullscreenIcons, { signal: APP_SIGNAL });
+document.addEventListener("fullscreenchange", updateFullscreenIcons, {
+  signal: APP_SIGNAL,
+});
+document.addEventListener("webkitfullscreenchange", updateFullscreenIcons, {
+  signal: APP_SIGNAL,
+});
 
 /**
  * Toggle play/pause
@@ -1146,7 +1141,7 @@ async function handleSizeChange() {
       state.settings.gridSize = value;
       await renderer.randomize(state.settings.density, state.settings.initSize);
       state.sim.population = renderer.population;
-  state.sim.populationGeneration = state.sim.generation;
+      state.sim.populationGeneration = state.sim.generation;
       updateStats();
       requestRender(true);
     } catch (e) {
@@ -1240,7 +1235,7 @@ async function handleInitSizeChange() {
     state.sim.generation = 0;
     await renderer.randomize(state.settings.density, state.settings.initSize);
     state.sim.population = renderer.population;
-  state.sim.populationGeneration = state.sim.generation;
+    state.sim.populationGeneration = state.sim.generation;
     updateStats();
     requestRender();
   }
@@ -1290,16 +1285,24 @@ function handleDensityPreview() {
 }
 
 /**
+ * Schedule hiding the Gen0 density tooltip.
+ * @param {number} delayMs
+ */
+function scheduleDensityTipHide(delayMs) {
+  clearTimeout(densityTip.hideTimeout);
+  densityTip.hideTimeout = setTimeout(() => {
+    densityTip.classList.remove("visible");
+  }, delayMs);
+}
+
+/**
  * Handle state.settings.density slider change (on release)
  */
 function handleDensityChange() {
   state.settings.density = parseInt(densitySlider.value, 10) / 100;
   densityTip.textContent = Math.round(state.settings.density * 100) + "%";
 
-  clearTimeout(densityTip.hideTimeout);
-  densityTip.hideTimeout = setTimeout(() => {
-    densityTip.classList.remove("visible");
-  }, 1000);
+  scheduleDensityTipHide(1000);
 
   requestUrlSync();
 
@@ -1351,10 +1354,7 @@ function handleDensityPointerUpGlobal() {
     return;
   }
 
-  clearTimeout(densityTip.hideTimeout);
-  densityTip.hideTimeout = setTimeout(() => {
-    densityTip.classList.remove("visible");
-  }, 600);
+  scheduleDensityTipHide(600);
 }
 
 /**
@@ -1365,10 +1365,7 @@ function handleDensityBlur() {
 
   if (!densityTip.classList.contains("visible")) return;
 
-  clearTimeout(densityTip.hideTimeout);
-  densityTip.hideTimeout = setTimeout(() => {
-    densityTip.classList.remove("visible");
-  }, 250);
+  scheduleDensityTipHide(250);
 }
 
 /**
@@ -1379,10 +1376,7 @@ function handleDensityMouseLeave() {
   if (densityDragActive) return;
   if (!densityTip.classList.contains("visible")) return;
 
-  clearTimeout(densityTip.hideTimeout);
-  densityTip.hideTimeout = setTimeout(() => {
-    densityTip.classList.remove("visible");
-  }, 250);
+  scheduleDensityTipHide(250);
 }
 
 /**
@@ -1390,8 +1384,7 @@ function handleDensityMouseLeave() {
  */
 function handleCellColorChange() {
   renderer.setCellColors(cellColorPicker.value, cellColorPicker2.value);
-  requestRender();
-  requestUrlSync();
+  requestRenderAndUrlSync();
 }
 
 /**
@@ -1399,8 +1392,7 @@ function handleCellColorChange() {
  */
 function handleBgColorChange() {
   renderer.setBackgroundColors(bgColorPicker.value, bgColorPicker2.value);
-  requestRender();
-  requestUrlSync();
+  requestRenderAndUrlSync();
 }
 
 /**
@@ -1410,8 +1402,7 @@ function handleLanternChange() {
   renderer.setLanternLightingEnabled(
     !!(lanternCheckbox && lanternCheckbox.checked),
   );
-  requestRender();
-  requestUrlSync();
+  requestRenderAndUrlSync();
 }
 
 /**
@@ -1426,67 +1417,17 @@ function handleScreenShowChange() {
   const enabled = !!(screenShowCheckbox && screenShowCheckbox.checked);
   if (screenShow) screenShow.setEnabled(enabled);
 
-  requestRender(true);
-  requestUrlSync();
+  requestRenderAndUrlSync(true);
 }
 
 /**
- * Capture the current trackball camera state (for restoring after Screen show).
- */
-/**
- * Start Screen show from the current view by dimming out first, then teleporting
- * to a new pass start while dimmed and fading back in.
- *
- * This is used specifically when the user presses Run while Screen show is enabled.
- */
-// Random value in [a,b] with a mild bias toward the center of the interval.
-// This keeps endpoints reachable while making mid-range starts slightly more common.
-/**
- * Estimate whether "fly-through" camera starts (inside/boundary of the cube) are likely to be visually useful.
- * We down-weight fly-through as the overall state.sim.population state.settings.density increases, or as the live cluster radius approaches the cube size.
- *
- * @param {number} density Population / totalCells, in [0..1].
- * @param {number} focusRadius Live cluster radius in world units.
- * @param {number} cubeHalf Half-extent of the grid cube in world units.
- * @returns {number} Factor in [0..1] (1 = fly-through encouraged, 0 = fly-through discouraged).
- */
-/**
- * Build the (inside/boundary/outside) category weights for start-point selection.
- * The target mix is ~60/30/10 when fly-through is plausible, and shifts toward outside views otherwise.
- */
-
-/**
- * Pick a Screen show start eye point in world space.
- *
- * Distribution target (when fly-through is plausible):
- *   - ~60% inside the cube,
- *   - ~30% inside but near the boundary,
- *   - ~10% outside the cube.
- *
- * @param {number[]} focusCenter Screen show focus center (world coords).
- * @param {number} focusRadius Screen show focus radius (world coords).
- * @param {number} minDist Minimum allowed distance from focusCenter.
- * @param {number} maxDist Maximum allowed distance from focusCenter.
- * @param {number} gs Grid size.
- * @param {number} cs Cell size.
- * @param {number} flyThroughFactor Fly-through factor in [0..1] (1 = fly-through encouraged).
- * @param {null|{min:number[], max:number[]}} aabbWorld Live AABB in world coords, used as a coarse "no-fly" region.
- * @returns {number[]} eye position [x,y,z] in world coords.
- */
-/**
- * Start a new camera pass (or restart the current one).
- */
-/**
- * Update the Screen show camera for the current frame.
- *
- * @returns {boolean} True if the camera changed and a render is needed.
+ * Toggle the optional grid boundary rendering.
  */
 function handleGridProjectionChange() {
   renderer.setGridProjectionEnabled(
     !!(gridProjectionCheckbox && gridProjectionCheckbox.checked),
   );
-  requestRender();
-  requestUrlSync();
+  requestRenderAndUrlSync();
 }
 
 /**

@@ -44,38 +44,26 @@ export function bindControls(dom, handlers) {
 
   add(d.densitySlider, "input", handlers.handleDensityPreview);
   add(d.densitySlider, "change", handlers.handleDensityChange);
-// Ensure the density tooltip cannot get "stuck" visible if the pointer is released
-// outside the slider (some browsers do not always dispatch a 'change' in that case).
-if (handlers.handleDensityPointerDown) {
-  add(d.densitySlider, "pointerdown", handlers.handleDensityPointerDown);
-}
-if (handlers.handleDensityPointerUpGlobal) {
-  add(window, "pointerup", handlers.handleDensityPointerUpGlobal, { passive: true });
-  add(window, "pointercancel", handlers.handleDensityPointerUpGlobal, { passive: true });
-}
-if (handlers.handleDensityBlur) {
-  add(d.densitySlider, "blur", handlers.handleDensityBlur);
-}
-if (handlers.handleDensityMouseLeave) {
-  add(d.densitySlider, "mouseleave", handlers.handleDensityMouseLeave);
-}
 
-// Ensure the density tooltip cannot get "stuck" visible if the pointer is released
-// outside the slider (some browsers do not always dispatch a 'change' in that case).
-if (handlers.handleDensityPointerDown) {
-  add(d.densitySlider, "pointerdown", handlers.handleDensityPointerDown);
-}
-if (handlers.handleDensityPointerUpGlobal) {
-  add(window, "pointerup", handlers.handleDensityPointerUpGlobal, { passive: true });
-  add(window, "pointercancel", handlers.handleDensityPointerUpGlobal, { passive: true });
-}
-if (handlers.handleDensityBlur) {
-  add(d.densitySlider, "blur", handlers.handleDensityBlur);
-}
-if (handlers.handleDensityMouseLeave) {
-  add(d.densitySlider, "mouseleave", handlers.handleDensityMouseLeave);
-}
-
+  // Ensure the density tooltip cannot get "stuck" visible if the pointer is released
+  // outside the slider (some browsers do not always dispatch a 'change' in that case).
+  if (handlers.handleDensityPointerDown) {
+    add(d.densitySlider, "pointerdown", handlers.handleDensityPointerDown);
+  }
+  if (handlers.handleDensityPointerUpGlobal) {
+    add(window, "pointerup", handlers.handleDensityPointerUpGlobal, {
+      passive: true,
+    });
+    add(window, "pointercancel", handlers.handleDensityPointerUpGlobal, {
+      passive: true,
+    });
+  }
+  if (handlers.handleDensityBlur) {
+    add(d.densitySlider, "blur", handlers.handleDensityBlur);
+  }
+  if (handlers.handleDensityMouseLeave) {
+    add(d.densitySlider, "mouseleave", handlers.handleDensityMouseLeave);
+  }
 
   add(d.cellColorPicker, "input", handlers.handleCellColorChange);
   add(d.cellColorPicker2, "input", handlers.handleCellColorChange);
