@@ -132,6 +132,15 @@ body {
   pointer-events: auto;
 }
 
+/* Shared translucent "glass" chrome used by HUD surfaces */
+.glass-chrome {
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+
 /* Header */
 #header {
   position: absolute;
@@ -141,12 +150,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  background: rgba(18, 18, 26, 0.7);
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 12px 20px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 #header h1 {
@@ -180,8 +185,6 @@ body {
   position: absolute;
   top: var(--hud-inset-top);
   right: var(--hud-inset-right);
-  background: rgba(18, 18, 26, 0.7);
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-sizing: content-box;
   padding: var(--controls-pad-y) 0;
@@ -192,8 +195,6 @@ body {
   max-width: calc(100vw - var(--hud-inset-left) - var(--hud-inset-right));
   max-height: calc(100vh - 48px - (var(--controls-pad-y) * 2));
   box-shadow: 0 8px 32px var(--shadow-color);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   z-index: 100;
 }
 
@@ -817,12 +818,8 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: rgba(18, 18, 26, 0.7);
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .stats-row {
@@ -866,9 +863,7 @@ input[type="range"]::-moz-range-thumb {
   width: 34px;
   height: 24px;
   padding: 0;
-  /* Match the translucent, blurred "glass" chrome used by the stats panel. */
-  background: rgba(18, 18, 26, 0.7);
-  border: 1px solid var(--border-color);
+  /* Shared translucent, blurred "glass" chrome (see .glass-chrome). */
   border-radius: 12px;
   color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
@@ -885,8 +880,6 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 #infoBtn:hover {

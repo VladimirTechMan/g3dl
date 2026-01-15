@@ -58,6 +58,25 @@ import {
 const PACKED_CELL_AXIS_BITS = 10;
 const MAX_PACKED_GRID_SIZE = 1 << PACKED_CELL_AXIS_BITS;
 
+/**
+ * Convert a CSS hex color to 0..1 RGB floats.
+ *
+ * The UI constrains values to "#rrggbb" via <input type="color"> and URL validation.
+ * This helper exists primarily to avoid duplicated parsing logic.
+ *
+ * @param {string} hex - "#rrggbb" (recommended) or "rrggbb".
+ * @returns {[number, number, number]}
+ */
+function hexToRgb01(hex) {
+  const t = String(hex).trim();
+  const s = t.startsWith("#") ? t.slice(1) : t;
+  return [
+    parseInt(s.slice(0, 2), 16) / 255,
+    parseInt(s.slice(2, 4), 16) / 255,
+    parseInt(s.slice(4, 6), 16) / 255,
+  ];
+}
+
 
 /**
  * Game of 3D Life - WebGPU Renderer
@@ -1256,28 +1275,12 @@ export class WebGPURenderer {
   }
 
   setCellColors(topHex, bottomHex) {
-    this.cellColorTop = [
-      parseInt(topHex.substr(1, 2), 16) / 255,
-      parseInt(topHex.substr(3, 2), 16) / 255,
-      parseInt(topHex.substr(5, 2), 16) / 255,
-    ];
-    this.cellColorBottom = [
-      parseInt(bottomHex.substr(1, 2), 16) / 255,
-      parseInt(bottomHex.substr(3, 2), 16) / 255,
-      parseInt(bottomHex.substr(5, 2), 16) / 255,
-    ];
+    this.cellColorTop = hexToRgb01(topHex);
+    this.cellColorBottom = hexToRgb01(bottomHex);
   }
   setBackgroundColors(topHex, bottomHex) {
-    this.bgColorTop = [
-      parseInt(topHex.substr(1, 2), 16) / 255,
-      parseInt(topHex.substr(3, 2), 16) / 255,
-      parseInt(topHex.substr(5, 2), 16) / 255,
-    ];
-    this.bgColorBottom = [
-      parseInt(bottomHex.substr(1, 2), 16) / 255,
-      parseInt(bottomHex.substr(3, 2), 16) / 255,
-      parseInt(bottomHex.substr(5, 2), 16) / 255,
-    ];
+    this.bgColorTop = hexToRgb01(topHex);
+    this.bgColorBottom = hexToRgb01(bottomHex);
   }
 
   setLanternLightingEnabled(enabled) {
