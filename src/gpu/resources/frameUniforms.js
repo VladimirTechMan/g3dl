@@ -14,7 +14,7 @@ import { mat4LookAt, mat4Perspective } from "../../util/math3d.js";
  *
  * @param {import("../renderer.js").WebGPURenderer} r
  */
-export function updateRenderUniforms(r) {
+function updateRenderUniforms(r) {
   const w = r.canvas.width || 1;
   const h = r.canvas.height || 1;
   const asp = w / h;
