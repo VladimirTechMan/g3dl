@@ -866,24 +866,22 @@ textarea {
     /* Slightly tighten edge padding to offset the wider buttons. */
     --controls-edge-pad: 14px;
 
-    /* Tighter corner spacing for single affordances (e.g., the About "i" button). */
-    --corner-pad: 12px;
-    --corner-inset-top: max(var(--corner-pad), var(--safe-inset-top));
-    --corner-inset-left: max(var(--corner-pad), var(--safe-inset-left));
-    --corner-inset-right: max(var(--corner-pad), var(--safe-inset-right));
-    --corner-inset-bottom: max(var(--corner-pad), var(--safe-inset-bottom));
-
-  
-    /* Shared mobile margin values used to visually align corner UI elements. */
-    --mobile-edge-offset-x: var(--corner-inset-right);
-    --mobile-edge-offset-y: var(--corner-inset-bottom);
+    /*
+     * Mobile HUD insets:
+     * - Use a smaller base pad so corner elements have more room on small screens.
+     */
+    --hud-pad: 12px;
+    --hud-inset-top: max(var(--hud-pad), var(--safe-inset-top));
+    --hud-inset-left: max(var(--hud-pad), var(--safe-inset-left));
+    --hud-inset-right: max(var(--hud-pad), var(--safe-inset-right));
+    --hud-inset-bottom: max(var(--hud-pad), var(--safe-inset-bottom));
 
     /*
      * Match the stats panel positioning to the same corner-spacing rules used by other mobile HUD elements.
      * This is also consumed by the iOS `visualViewport` pinning logic.
      */
-    --stats-inset-left: max(var(--corner-inset-left), var(--mobile-edge-offset-x));
-    --stats-inset-bottom: var(--corner-inset-bottom);
+    --stats-inset-left: var(--hud-inset-left);
+    --stats-inset-bottom: var(--hud-inset-bottom);
   }
 
   /* iOS Safari: prevent focus auto-zoom by keeping form controls at >= 16px.
@@ -899,8 +897,8 @@ textarea {
   #infoBtn {
     display: flex;
     position: fixed;
-    right: var(--corner-inset-right);
-    bottom: var(--corner-inset-bottom);
+    right: var(--hud-inset-right);
+    bottom: var(--hud-inset-bottom);
     width: var(--icon-btn-size);
     height: var(--icon-btn-size);
     padding: 0;
@@ -934,13 +932,6 @@ textarea {
   #infoBtn:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.35);
     outline-offset: 2px;
-  }
-
-  /* On touch devices, align the primary corner panels to the same viewport margins as the About button.
-     Note: we clamp to each edge’s safe-area inset where necessary to avoid clipping under the notch. */
-  #controls {
-    right: var(--mobile-edge-offset-x);
-    top: max(var(--corner-inset-top), var(--mobile-edge-offset-y));
   }
 
   #stats {
