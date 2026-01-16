@@ -351,59 +351,6 @@ export function buildUrlWithSettings(dom, fallbacks) {
 }
 
 /**
- * Kept for backwards compatibility / debugging. Auto-updates are disabled by default.
- * This updates the current location without reloading.
- *
- * @param {string} fullUrl
- */
-function replaceLocationWithFullUrl(fullUrl) {
-  const u = new URL(fullUrl);
-  const rel = u.pathname + u.search + u.hash;
-  history.replaceState(null, "", rel);
-}
-
-/**
- * A tiny controller for optionally auto-syncing settings into the address bar.
- *
- * In this codebase auto-sync is intentionally off by default (sharing is explicit
- * via the "Copy URL with settings" button), but the call sites are preserved so
- * future experiments are low risk.
- */
-export function createUrlSyncController({ enabled = false, buildUrl }) {
-  let urlSyncEnabled = !!enabled;
-  let urlSyncPending = false;
-
-  /** @returns {void} */
-  function request() {
-    if (!urlSyncEnabled) return;
-    if (urlSyncPending) return;
-    urlSyncPending = true;
-    Promise.resolve().then(() => {
-      urlSyncPending = false;
-      try {
-        replaceLocationWithFullUrl(buildUrl());
-      } catch (_) {
-        // ignore
-      }
-    });
-  }
-
-  return {
-    get enabled() {
-      return urlSyncEnabled;
-    },
-    set enabled(v) {
-      urlSyncEnabled = !!v;
-    },
-    request,
-    updateNow() {
-      if (!urlSyncEnabled) return;
-      replaceLocationWithFullUrl(buildUrl());
-    },
-  };
-}
-
-/**
  * @param {string} text
  * @returns {Promise<boolean>}
  */

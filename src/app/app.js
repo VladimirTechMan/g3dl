@@ -11,8 +11,6 @@ import {
   normalizeRule,
   hasKnownSettingsParams,
   applySettingsFromUrl,
-  buildUrlWithSettings,
-  createUrlSyncController,
   copySettingsUrlToClipboard,
   stripAllQueryParamsFromAddressBar,
 } from "./settings.js";
@@ -26,16 +24,10 @@ import { ScreenShowController } from "./screenshow/controller.js";
 const {
   canvas,
   app,
-  stepBtn,
-  playBtn,
-  resetBtn,
-  settingsBtn,
-  helpBtn,
   fullscreenBtn,
   fullscreenEnterIcon,
   fullscreenExitIcon,
   settingsPanel,
-  helpPanel,
   controls,
   buttonRow,
   playIcon,
@@ -56,12 +48,10 @@ const {
   stableStopCheckbox,
   lanternCheckbox,
   screenShowCheckbox,
-  copyUrlBtn,
   gridProjectionCheckbox,
   generationDisplay,
   populationDisplay,
   statsPanel,
-  infoBtn,
   header,
 } = dom;
 
@@ -201,13 +191,6 @@ function delayFromSpeedSliderValue(raw) {
 function refreshSpeedFromSlider() {
   state.settings.speed = delayFromSpeedSliderValue(speedSlider.value);
 }
-
-// URL sync (disabled by default): call sites are preserved for easy experimentation.
-let urlSync = null;
-function requestUrlSync() {
-  if (urlSync) urlSync.request();
-}
-
 
 async function handleCopyUrlButton() {
   return copySettingsUrlToClipboard(dom, {
@@ -400,12 +383,6 @@ function requestRender(immediate = false) {
   loop.requestRender(immediate);
 }
 
-function requestRenderAndUrlSync(immediate = false) {
-  requestRender(immediate);
-  requestUrlSync();
-}
-
-
 /**
  * Stop play mode.
  *
@@ -433,7 +410,7 @@ function disableScreenShowDueToEmpty() {
 
   if (screenShow) screenShow.setEnabled(false);
 
-  requestRenderAndUrlSync(true);
+  requestRender(true);
 }
 
 /**
@@ -581,8 +558,8 @@ async function init() {
   //   clamped to a stale smaller max; we then tighten to the current grid size.
   if (initSizeInput) initSizeInput.max = String(maxGrid);
 
-  state.flags.urlHadSettingsParams = hasKnownSettingsParams();
-  if (state.flags.urlHadSettingsParams) {
+  const urlHadSettingsParams = hasKnownSettingsParams();
+  if (urlHadSettingsParams) {
     const restored = applySettingsFromUrl(dom, { maxGrid });
     if (restored.gridSize != null) state.settings.gridSize = restored.gridSize;
     if (restored.initSize != null) state.settings.initSize = restored.initSize;
@@ -664,23 +641,9 @@ async function init() {
   // If the page was opened with Settings in the URL (query parameters), apply them once and
   // then clean the address bar to avoid a "sticky" parametrized URL.
   // (Sharing is done explicitly via the "Copy URL with settings" button.)
-  if (state.flags.urlHadSettingsParams) {
+  if (urlHadSettingsParams) {
     stripAllQueryParamsFromAddressBar();
-    state.flags.urlHadSettingsParams = false;
   }
-
-  // URL is no longer auto-updated when changing Settings.
-  // Use the “Copy URL with settings” button to generate a shareable link.
-  // We keep the (disabled-by-default) controller to preserve the existing call sites.
-  urlSync = createUrlSyncController({
-    enabled: false,
-    buildUrl: () =>
-      buildUrlWithSettings(dom, {
-        fallbackGridSize: state.settings.gridSize,
-        fallbackInitSize: state.settings.initSize,
-        fallbackDensity: state.settings.density,
-      }),
-  });
 
   // Kick the first frame.
   requestRender();
@@ -919,9 +882,6 @@ function handlePresetChange() {
     setInvalid(surviveInput.parentElement, false);
     setInvalid(birthInput.parentElement, false);
     parseRules();
-
-    // The game rule preset itself is not stored in the URL, but Survival/Birth are.
-    requestUrlSync();
   }
 }
 
@@ -954,8 +914,6 @@ function handleRuleInputChange() {
 
   presetSelect.value = matchedPreset;
   parseRules();
-
-  requestUrlSync();
 }
 
 function handleRuleKeydown(e) {
@@ -1097,8 +1055,6 @@ function handleSpeedChange() {
   // If we're currently waiting for the next tick (timer pending), reschedule it.
   // If a step is in-flight, the new state.settings.speed will apply on the next scheduled tick.
   if (loop) loop.rescheduleNextTick();
-
-  requestUrlSync();
 }
 
 /**
@@ -1157,8 +1113,6 @@ async function handleSizeChange() {
   } else {
     state.settings.gridSize = value;
   }
-
-  requestUrlSync();
 }
 
 /**
@@ -1239,8 +1193,6 @@ async function handleInitSizeChange() {
     updateStats();
     requestRender();
   }
-
-  requestUrlSync();
 }
 
 /**
@@ -1303,8 +1255,6 @@ function handleDensityChange() {
   densityTip.textContent = Math.round(state.settings.density * 100) + "%";
 
   scheduleDensityTipHide(1000);
-
-  requestUrlSync();
 
   // Only apply state.settings.density if simulation is not running
   if (!state.sim.isPlaying) {
@@ -1384,7 +1334,7 @@ function handleDensityMouseLeave() {
  */
 function handleCellColorChange() {
   renderer.setCellColors(cellColorPicker.value, cellColorPicker2.value);
-  requestRenderAndUrlSync();
+  requestRender();
 }
 
 /**
@@ -1392,7 +1342,7 @@ function handleCellColorChange() {
  */
 function handleBgColorChange() {
   renderer.setBackgroundColors(bgColorPicker.value, bgColorPicker2.value);
-  requestRenderAndUrlSync();
+  requestRender();
 }
 
 /**
@@ -1402,7 +1352,7 @@ function handleLanternChange() {
   renderer.setLanternLightingEnabled(
     !!(lanternCheckbox && lanternCheckbox.checked),
   );
-  requestRenderAndUrlSync();
+  requestRender();
 }
 
 /**
@@ -1417,7 +1367,7 @@ function handleScreenShowChange() {
   const enabled = !!(screenShowCheckbox && screenShowCheckbox.checked);
   if (screenShow) screenShow.setEnabled(enabled);
 
-  requestRenderAndUrlSync(true);
+  requestRender(true);
 }
 
 /**
@@ -1427,7 +1377,7 @@ function handleGridProjectionChange() {
   renderer.setGridProjectionEnabled(
     !!(gridProjectionCheckbox && gridProjectionCheckbox.checked),
   );
-  requestRenderAndUrlSync();
+  requestRender();
 }
 
 /**
@@ -1435,13 +1385,12 @@ function handleGridProjectionChange() {
  */
 function handleToroidalChange() {
   renderer.setToroidal(toroidalCheckbox.checked);
-  requestUrlSync();
+  requestRender();
 }
 
 function handleStableStopChange() {
   if (!renderer || !stableStopCheckbox) return;
   renderer.setChangeDetectionEnabled(stableStopCheckbox.checked);
-  requestUrlSync();
 }
 
 /**

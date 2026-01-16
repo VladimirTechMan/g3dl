@@ -44,7 +44,6 @@
 
 /**
  * @typedef {Object} AppState
- * @property {{ urlHadSettingsParams: boolean }} flags
  * @property {{
  *   speed: number,
  *   gridSize: number,
@@ -97,9 +96,6 @@ function createScreenShowState() {
  */
 export function createAppState() {
   return {
-    flags: {
-      urlHadSettingsParams: false,
-    },
     settings: {
       speed: 300,
       gridSize: 96,

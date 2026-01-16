@@ -322,7 +322,7 @@ export class LoopController {
       return;
     }
 
-const elapsed = performance.now() - t0;
+    const elapsed = performance.now() - t0;
     const delay = Math.max(0, this.hooks.getSpeedDelayMs() - elapsed);
 
     this.playTimer = setTimeout(() => this._playTick(sessionId), delay);
