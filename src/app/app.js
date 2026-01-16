@@ -17,6 +17,7 @@ import {
 import { LoopController } from "./loop.js";
 import { createAppState } from "./state.js";
 import { bindUI } from "../ui/bindings.js";
+import { createToastController } from "../ui/toast.js";
 import { OrbitControls } from "./orbitControls.js";
 import { ScreenShowController } from "./screenshow/controller.js";
 import { debugLog, debugWarn } from "../util/log.js";
@@ -65,6 +66,10 @@ const {
  */
 const APP_ABORT = new AbortController();
 const APP_SIGNAL = APP_ABORT.signal;
+
+// Non-fatal, user-visible feedback (e.g., fullscreen failures) that would otherwise
+// only be visible in the console. Safe no-op if the DOM elements are absent.
+const toast = createToastController(dom, { signal: APP_SIGNAL });
 
 /**
  * Resolve CSS length expressions (including `var(...)`, `env(...)`, `calc(...)`, `max(...)`)
@@ -1000,18 +1005,65 @@ function exitFullscreen() {
   return fn.call(document);
 }
 
+/**
+ * Produce a short, user-facing message for fullscreen failures.
+ *
+ * Notes:
+ * - Many browsers reject fullscreen requests unless they are the direct result
+ *   of a user gesture.
+ * - Error objects vary across implementations; we rely primarily on `name` and
+ *   fallback to `message`.
+ *
+ * @param {any} err
+ * @param {{ exiting?: boolean }=} opts
+ */
+function describeFullscreenError(err, opts = {}) {
+  const exiting = !!opts.exiting;
+  const action = exiting ? "Exit fullscreen" : "Fullscreen";
+  const name = err && typeof err.name === "string" ? err.name : "";
+  const msg = err && typeof err.message === "string" ? err.message : "";
+
+  if (name === "NotAllowedError") {
+    return exiting
+      ? "Exit fullscreen was blocked by the browser."
+      : "Fullscreen was blocked by the browser. Try again after a direct tap/click.";
+  }
+
+  if (name === "NotSupportedError") {
+    return `${action} is not supported on this device.`;
+  }
+
+  if (msg) {
+    // Keep the message compact; browsers sometimes include long stack-like text.
+    const compact = msg.length > 120 ? msg.slice(0, 117) + "..." : msg;
+    return `${action} failed: ${compact}`;
+  }
+
+  return `${action} is not available on this device.`;
+}
+
 function toggleFullscreen() {
   if (!getFullscreenElement()) {
     requestFullscreen(app || canvas)
       .then(updateFullscreenIcons)
       .catch((err) => {
         debugWarn("Fullscreen error:", err);
+        toast.show({
+          kind: "warn",
+          message: describeFullscreenError(err),
+          autoHideMs: 6000,
+        });
       });
   } else {
     exitFullscreen()
       .then(updateFullscreenIcons)
       .catch((err) => {
         debugWarn("Exit fullscreen error:", err);
+        toast.show({
+          kind: "warn",
+          message: describeFullscreenError(err, { exiting: true }),
+          autoHideMs: 6000,
+        });
       });
   }
 }

@@ -63,6 +63,9 @@ function byId(id) {
  * @property {HTMLElement|null} statsPanel
  * @property {HTMLButtonElement|null} infoBtn
  * @property {HTMLElement|null} header
+ * @property {HTMLElement|null} toast
+ * @property {HTMLElement|null} toastMessage
+ * @property {HTMLButtonElement|null} toastCloseBtn
  */
 /** @type {DomCache} */
 const _dom = (() => {
@@ -143,6 +146,12 @@ const _dom = (() => {
   const infoBtn = /** @type {HTMLButtonElement|null} */ (byId("infoBtn"));
   const header = byId("header");
 
+  const toast = byId("toast");
+  const toastMessage = byId("toastMessage");
+  const toastCloseBtn = /** @type {HTMLButtonElement|null} */ (
+    byId("toastCloseBtn")
+  );
+
   return {
     canvas,
     app,
@@ -183,6 +192,9 @@ const _dom = (() => {
     statsPanel,
     infoBtn,
     header,
+    toast,
+    toastMessage,
+    toastCloseBtn,
   };
 })();
 

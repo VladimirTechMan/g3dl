@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes, maximum-scale=5"
     />
     <title>Game of 3D Life</title>
-    <link rel="stylesheet" href="styles.css?v=g3dl-ui-8" />
+    <link rel="stylesheet" href="styles.css?v=g3dl-ui-9" />
   </head>
   <body>
     <div id="app">
@@ -434,6 +434,26 @@
               <span id="population" class="stat-value">0</span>
             </div>
           </div>
+        </div>
+
+        <div
+          id="toast"
+          class="toast glass-chrome"
+          hidden
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div id="toastMessage" class="toast-message"></div>
+          <button
+            id="toastCloseBtn"
+            class="toast-close"
+            type="button"
+            title="Dismiss"
+            aria-label="Dismiss message"
+          >
+            &times;
+          </button>
         </div>
       </div>
     </div>
