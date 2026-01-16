@@ -131,7 +131,8 @@ Key modules:
 
 ### Debug checks
 
-Developer option to validate buffer layouts between JS and WGSL. Enable extra assertions with:
+Developer option to validate buffer layouts between JS and WGSL. The same flag also enables
+additional debug-only console logging. Enable extra assertions with:
 - `?debug=1` in the URL, or
 - `localStorage.g3dl_debug = "1"` (then reload)
 

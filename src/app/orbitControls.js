@@ -14,6 +14,8 @@
  *   legacy Touch Events path to reduce complexity and avoid double-handling edge cases.
  */
 
+import { debugWarn } from "../util/log.js";
+
 export class OrbitControls {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -144,7 +146,7 @@ export class OrbitControls {
 
     if (!window.PointerEvent) {
       // Target platforms for this project should always support Pointer Events.
-      console.warn("Pointer Events unavailable; OrbitControls disabled.");
+      debugWarn("Pointer Events unavailable; OrbitControls disabled.");
       return;
     }
 

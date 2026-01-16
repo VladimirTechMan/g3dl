@@ -47,6 +47,8 @@ import {
   commitCameraOverrideToUser as commitCameraOverrideToUserImpl,
 } from "./cameraControls.js";
 
+import { debugWarn } from "../util/log.js";
+
 
 // Packed cell coordinate format: 10 bits per axis.
 //
@@ -383,7 +385,7 @@ export class WebGPURenderer {
     try {
       this.device = await adapter.requestDevice(deviceDesc);
     } catch (e) {
-      console.warn("requestDevice with requiredLimits failed; retrying with defaults", e);
+      debugWarn("requestDevice with requiredLimits failed; retrying with defaults", e);
       this.device = await adapter.requestDevice();
     }
 
@@ -404,7 +406,7 @@ export class WebGPURenderer {
         try {
           this.onDeviceLost(info);
         } catch (e) {
-          console.warn("onDeviceLost callback failed:", e);
+          debugWarn("onDeviceLost callback failed:", e);
         }
       }
     });

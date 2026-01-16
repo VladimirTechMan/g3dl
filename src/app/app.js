@@ -19,6 +19,7 @@ import { createAppState } from "./state.js";
 import { bindUI } from "../ui/bindings.js";
 import { OrbitControls } from "./orbitControls.js";
 import { ScreenShowController } from "./screenshow/controller.js";
+import { debugLog, debugWarn } from "../util/log.js";
 
 // DOM Elements (cached)
 const {
@@ -446,7 +447,7 @@ async function init() {
     // Fail fast if a refactor accidentally removed/renamed required methods.
     assertRendererApi(renderer);
     await renderer.init();
-    console.log("WebGPU renderer initialized successfully");
+    debugLog("WebGPU renderer initialized successfully");
 
     // Main loop controller: owns scheduling of steps and rendering.
     loop = new LoopController({
@@ -1004,13 +1005,13 @@ function toggleFullscreen() {
     requestFullscreen(app || canvas)
       .then(updateFullscreenIcons)
       .catch((err) => {
-        console.log("Fullscreen error:", err);
+        debugWarn("Fullscreen error:", err);
       });
   } else {
     exitFullscreen()
       .then(updateFullscreenIcons)
       .catch((err) => {
-        console.log("Exit fullscreen error:", err);
+        debugWarn("Exit fullscreen error:", err);
       });
   }
 }
@@ -1133,7 +1134,7 @@ async function handleSizeChange() {
       requestRender(true);
     } catch (e) {
       // Grid size too large for GPU
-      console.error("Grid size error:", e.message);
+      debugWarn("Grid size error:", e.message);
       // Revert to previous grid size
       sizeInput.value = state.settings.gridSize;
       value = state.settings.gridSize;

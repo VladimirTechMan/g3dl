@@ -5,6 +5,8 @@
  * scheduling so renderer.js can stay focused on orchestration.
  */
 
+import { debugWarn } from "../util/log.js";
+
 /**
  * Create the staging buffers and internal ring state used for CPU readback.
  *
@@ -193,7 +195,7 @@ export function startReadback(r, slot, stepGeneration) {
       // During teardown (renderer.destroy()), buffers may be destroyed while
       // mapAsync() is still pending; suppress warnings in that case.
       if (!r._suppressAsyncErrors) {
-        console.warn("Stats readback failed:", e);
+        debugWarn("Stats readback failed:", e);
       }
       try {
         popBuf.unmap();
