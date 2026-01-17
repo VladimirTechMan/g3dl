@@ -12,7 +12,7 @@ import {
  *  - living cell instance list + atomic counters
  *  - per-grid parameter buffers
  *  - readback staging buffers (population/stats)
- *  - AABB readback resources (optional Screensaver feature)
+ *  - AABB readback resources (optional Screen show feature)
  */
 
 /**
@@ -121,7 +121,7 @@ export function createGridBuffers(r) {
   // Readback staging rings depend on the counter buffers.
   createReadbackResources(r);
 
-  // AABB readback resources (optional Screensaver camera targeting)
+  // AABB readback resources (optional Screen show camera targeting)
   r.aabbDispatchArgsBuffer = r._createBuffer("aabbDispatchArgsBuffer", {
     size: G3DL_LAYOUT.INDIRECT.DISPATCH_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,

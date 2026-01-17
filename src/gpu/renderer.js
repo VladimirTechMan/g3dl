@@ -34,7 +34,7 @@ import { BufferManager } from "./util/bufferManager.js";
 import {
   ensureCameraScratch,
   syncCameraMatrix,
-  setQuatFromEuler as setQuatFromEulerImpl,
+  setQuatFromEuler,
   rotate as rotateImpl,
   pan as panImpl,
   updateInertia as updateInertiaImpl,
@@ -102,7 +102,7 @@ export class WebGPURenderer {
     this.atomicCounterBuffer = null;
 
     // Lightweight population-only readback (independent of throttled stats ring).
-    // Used to keep UI and Screensaver heuristics reasonably fresh in fast-play modes without stalling steps.
+    // Used to keep UI and Screen show heuristics reasonably fresh in fast-play modes without stalling steps.
     this.populationReadbackBuffers = null;
     this.populationReadbackPending = false;
     this.populationReadbackPromise = null;
@@ -114,7 +114,7 @@ export class WebGPURenderer {
     // Change detection counter
     this.changeCounterBuffer = null;
 
-    // Optional live-cell AABB readback (used by Screensaver camera targeting)
+    // Optional live-cell AABB readback (used by Screen show camera targeting)
     this.aabbPipeline = null;
     this.aabbArgsPipeline = null;
     this.aabbDispatchArgsBuffer = null;
@@ -293,7 +293,7 @@ export class WebGPURenderer {
     // Set initial camera rotation.
     // Camera scratch must exist before any rotation operations (no per-frame allocations).
     ensureCameraScratch(this);
-    this.setQuatFromEuler(0.7, -0.5);
+    setQuatFromEuler(this, 0.7, -0.5);
     syncCameraMatrix(this);
   }
 
@@ -604,7 +604,7 @@ export class WebGPURenderer {
 
   /**
    * Ensure AABB pipelines and bind groups exist.
-   * Compiled lazily because Screensaver camera targeting is optional.
+   * Compiled lazily because Screen show camera targeting is optional.
    *
    * @returns {Promise<boolean>} true if ready
    */
@@ -713,7 +713,7 @@ export class WebGPURenderer {
    * Request a lightweight population (live-cell count) readback from the GPU.
    *
    * This is intentionally separate from the throttled stats ring used by step(), so callers can
-   * refresh the HUD (or Screensaver heuristics) in fast-play modes without forcing per-step
+   * refresh the HUD (or Screen show heuristics) in fast-play modes without forcing per-step
    * readbacks or stalling the simulation queue.
    *
    * Notes:
@@ -1294,12 +1294,6 @@ export class WebGPURenderer {
     this.gridProjectionEnabled = enabled ? 1.0 : 0.0;
   }
 
-  setLanternStrength(strength) {
-    // Clamp to sensible range
-    const s = Math.max(0.0, Math.min(2.0, Number(strength)));
-    this.lanternStrength = isFinite(s) ? s : this.lanternStrength;
-  }
-
   render() {
     // Update frame uniforms (camera + background) once per frame.
     updateFrameUniformsImpl(this);
@@ -1555,13 +1549,5 @@ export class WebGPURenderer {
 
   commitCameraOverrideToUser() {
     commitCameraOverrideToUserImpl(this);
-  }
-
-  /**
-   * Internal helper retained for readability during init/reset.
-   * Prefer calling cameraControls.setQuatFromEuler() directly from new code.
-   */
-  setQuatFromEuler(yaw, pitch) {
-    setQuatFromEulerImpl(this, yaw, pitch);
   }
 }

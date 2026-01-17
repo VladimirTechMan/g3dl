@@ -17,7 +17,7 @@ export const LOG_MSG = Object.freeze({
   GRID_ALLOC_FALLBACK: "Failed to allocate grid resources; falling back to a smaller grid size:",
   RECOVER_INIT_SIZE_FAILED: "Failed to recover after init size error:",
 
-  AABB_PIPELINE_FAILED: "AABB pipeline compilation failed; Screensaver targeting will be disabled",
+  AABB_PIPELINE_FAILED: "AABB pipeline compilation failed; Screen show targeting will be disabled",
 
   BUFFER_UNREGISTERED_WRITE:
     "G3DL debug: writeBuffer() called on an unregistered buffer; size validation skipped. " +

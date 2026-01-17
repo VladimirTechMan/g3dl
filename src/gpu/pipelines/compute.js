@@ -77,7 +77,7 @@ export async function createDrawArgsPipeline(r) {
 }
 
 /**
- * Create (or reuse) AABB pipelines used by Screensaver camera targeting.
+ * Create (or reuse) AABB pipelines used by Screen show camera targeting.
  *
  * This optional feature is compiled lazily via WebGPURenderer.ensureAabbPipelines().
  *

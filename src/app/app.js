@@ -32,8 +32,6 @@ const {
   fullscreenEnterIcon,
   fullscreenExitIcon,
   settingsPanel,
-  controls,
-  buttonRow,
   playIcon,
   pauseIcon,
   speedSlider,
@@ -243,55 +241,6 @@ async function handleCopyUrlButton() {
   return ok;
 }
 
-// Controls width: keep the panel width aligned to the top button row, even when Settings/Help are open.
-function syncControlsWidthToButtonRow() {
-  if (!controls || !buttonRow) return;
-
-  const cs = getComputedStyle(controls);
-  const padX =
-    (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-  const borderX =
-    (parseFloat(cs.borderLeftWidth) || 0) +
-    (parseFloat(cs.borderRightWidth) || 0);
-  const minW = parseFloat(cs.minWidth) || 0;
-
-  // Compute the *intrinsic* width of the visible button row (content + gap + padding),
-  // independent of any previously forced panel width.
-  const rowStyle = getComputedStyle(buttonRow);
-  const gap =
-    parseFloat(rowStyle.columnGap) ||
-    parseFloat(rowStyle.gap) ||
-    0;
-
-  const rowPadX =
-    (parseFloat(rowStyle.paddingLeft) || 0) +
-    (parseFloat(rowStyle.paddingRight) || 0);
-
-  const visibleButtons = Array.from(buttonRow.children).filter((el) => {
-    if (!(el instanceof HTMLElement)) return false;
-    return getComputedStyle(el).display !== "none";
-  });
-
-  let contentW = 0;
-  for (const el of visibleButtons) {
-    contentW += el.getBoundingClientRect().width;
-  }
-  if (visibleButtons.length > 1) contentW += gap * (visibleButtons.length - 1);
-
-  const rowW = Math.ceil(contentW + rowPadX);
-  let target = Math.ceil(rowW + padX + borderX);
-  target = Math.max(minW, target);
-
-  // Mirror CSS:
-  //   max-width: calc(100vw - var(--hud-inset-left) - var(--hud-inset-right));
-  // Use visualViewport width when available (mobile pinch/zoom), otherwise fallback to layout viewport.
-  const viewportW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const { left: insetLeft, right: insetRight } = getHudInsetsPx();
-  const maxAllowed = Math.max(0, viewportW - insetLeft - insetRight);
-  target = Math.min(target, maxAllowed);
-
-  controls.style.width = `${target}px`;
-}
 
 /**
  * Coalesce resize/orientation events into a single rAF pass.
@@ -304,7 +253,6 @@ function scheduleResizeWork() {
   resizeWorkRafId = requestAnimationFrame(() => {
     resizeWorkRafId = 0;
     matchHeaderWidths();
-    syncControlsWidthToButtonRow();
     scheduleStatsViewportPin();
     if (loop) loop.notifyResizeEvent();
     else requestRender(true);

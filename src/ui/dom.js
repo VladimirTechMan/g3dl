@@ -37,7 +37,6 @@ function byId(id) {
  * @property {HTMLElement|null} settingsPanel
  * @property {HTMLElement|null} helpPanel
  * @property {HTMLElement|null} controls
- * @property {HTMLElement|null} buttonRow
  * @property {SVGElement|null} playIcon
  * @property {SVGElement|null} pauseIcon
  * @property {HTMLInputElement|null} speedSlider
@@ -90,7 +89,6 @@ const _dom = (() => {
   const settingsPanel = byId("settings-panel");
   const helpPanel = byId("help-panel");
   const controls = byId("controls");
-  const buttonRow = controls ? controls.querySelector(".button-row") : null;
   const playIcon = /** @type {SVGElement|null} */ (byId("playIcon"));
   const pauseIcon = /** @type {SVGElement|null} */ (byId("pauseIcon"));
   const speedSlider = /** @type {HTMLInputElement|null} */ (
@@ -166,7 +164,6 @@ const _dom = (() => {
     settingsPanel,
     helpPanel,
     controls,
-    buttonRow: /** @type {HTMLElement|null} */ (buttonRow),
     playIcon,
     pauseIcon,
     speedSlider,

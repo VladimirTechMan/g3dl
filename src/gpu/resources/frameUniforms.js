@@ -22,7 +22,7 @@ function updateRenderUniforms(r) {
   // Projection
   mat4Perspective(r._proj, Math.PI / 4, asp, 0.1, 1000);
 
-  // Camera: either user trackball camera (default) or an explicit override (Screensaver).
+  // Camera: either user trackball camera (default) or an explicit override (Screen show).
   // `camDir` points from the camera to the target (used for lighting).
   let camDirX = 0.0,
     camDirY = 0.0,

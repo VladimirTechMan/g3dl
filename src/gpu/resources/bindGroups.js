@@ -25,7 +25,7 @@ export function rebuildBindGroups(r) {
     ],
   });
 
-  // AABB bind groups (optional; used for Screensaver camera targeting)
+  // AABB bind groups (optional; used for Screen show camera targeting)
   if (
     r.aabbPipeline &&
     r.aabbArgsPipeline &&
