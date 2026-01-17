@@ -9,7 +9,6 @@
 
 export const UI_MSG = {
   clipboard: {
-    copied: "Settings URL copied to clipboard.",
     failed:
       "Copy failed. Your browser may block clipboard access. Try again or enable clipboard permissions.",
   },

@@ -59,7 +59,7 @@ function tryPersistDebugToStorage(enabled) {
  * localStorage. This is important because the app may strip query parameters after
  * initialization when applying settings.
  */
-export const DEBUG_LOG_ENABLED = (() => {
+const DEBUG_LOG_ENABLED = (() => {
   const fromUrl = tryGetDebugFromUrl();
   if (fromUrl != null) {
     tryPersistDebugToStorage(fromUrl);

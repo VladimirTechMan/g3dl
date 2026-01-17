@@ -168,7 +168,7 @@ export function hasKnownSettingsParams(search = window.location.search) {
  * It also returns derived numeric values that the app typically caches as
  * state variables (gridSize, initSize, density).
  *
- * @param {import("../ui/dom.js").dom} dom
+ * @param {import("../ui/dom.js").DomCache} dom
  * @param {{ maxGrid?: number }} [opts]
  * @returns {{ gridSize: number|null, initSize: number|null, density: number|null }}
  */
@@ -291,11 +291,11 @@ export function applySettingsFromUrl(dom, opts = {}) {
 /**
  * Build a shareable URL containing the current settings.
  *
- * @param {import("../ui/dom.js").dom} dom
+ * @param {import("../ui/dom.js").DomCache} dom
  * @param {{ fallbackGridSize: number, fallbackInitSize: number, fallbackDensity: number }} fallbacks
  * @returns {string}
  */
-export function buildUrlWithSettings(dom, fallbacks) {
+function buildUrlWithSettings(dom, fallbacks) {
   const params = new URLSearchParams(window.location.search);
 
   // Remove any previous values for our keys
@@ -392,7 +392,7 @@ async function copyTextToClipboard(text) {
  * Copy a URL with current settings to the clipboard and provide lightweight
  * UX feedback by swapping the button label temporarily.
  *
- * @param {import("../ui/dom.js").dom} dom
+ * @param {import("../ui/dom.js").DomCache} dom
  * @param {{ fallbackGridSize: number, fallbackInitSize: number, fallbackDensity: number }} fallbacks
  */
 export async function copySettingsUrlToClipboard(dom, fallbacks) {

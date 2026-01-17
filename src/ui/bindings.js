@@ -12,33 +12,37 @@ import { createPanelManager } from "./panels.js";
 
 /**
  * @typedef {Object} BindUiHandlers
- * @property {() => void | Promise<void>} step
- * @property {() => void} togglePlay
- * @property {() => void | Promise<void>} reset
- * @property {() => void} toggleFullscreen
- * @property {(e: Event) => void} handleSpeedPreview
- * @property {(e: Event) => void} handleSpeedChange
- * @property {(e: Event) => void | Promise<void>} handleSizeChange
- * @property {(e: Event) => void} validateSizeInput
+ * @property {(e?: Event) => void | Promise<void>} step
+ * @property {(e?: Event) => void} togglePlay
+ * @property {(e?: Event) => void | Promise<void>} reset
+ * @property {(e?: Event) => void} toggleFullscreen
+ * @property {(e?: Event) => void} handleSpeedPreview
+ * @property {(e?: Event) => void} handleSpeedChange
+ * @property {(e?: Event) => void | Promise<void>} handleSizeChange
+ * @property {(e?: Event) => void} validateSizeInput
  * @property {(e: KeyboardEvent) => void} handleSizeKeydown
- * @property {(e: Event) => void | Promise<void>} handleInitSizeChange
- * @property {(e: Event) => void} validateInitSizeInput
+ * @property {(e?: Event) => void | Promise<void>} handleInitSizeChange
+ * @property {(e?: Event) => void} validateInitSizeInput
  * @property {(e: KeyboardEvent) => void} handleInitSizeKeydown
- * @property {(e: Event) => void} handleDensityPreview
- * @property {(e: Event) => void | Promise<void>} handleDensityChange
- * @property {(e: Event) => void} handleCellColorChange
- * @property {(e: Event) => void} handleBgColorChange
- * @property {(e: Event) => void} handlePresetChange
- * @property {(e: Event) => void} handleRuleInputChange
+ * @property {(e?: Event) => void} handleDensityPreview
+ * @property {(e?: Event) => void | Promise<void>} handleDensityChange
+ * @property {(e?: PointerEvent) => void} [handleDensityPointerDown]
+ * @property {(e?: PointerEvent) => void} [handleDensityPointerUpGlobal]
+ * @property {(e?: FocusEvent) => void} [handleDensityBlur]
+ * @property {(e?: MouseEvent) => void} [handleDensityMouseLeave]
+ * @property {(e?: Event) => void} handleCellColorChange
+ * @property {(e?: Event) => void} handleBgColorChange
+ * @property {(e?: Event) => void} handlePresetChange
+ * @property {(e?: Event) => void} handleRuleInputChange
  * @property {(e: KeyboardEvent) => void} handleRuleKeydown
- * @property {(e: Event) => void} handleLanternChange
- * @property {(e: Event) => void} handleScreenShowChange
- * @property {(e: Event) => void} handleGridProjectionChange
- * @property {(e: Event) => void} handleToroidalChange
- * @property {(e: Event) => void} handleStableStopChange
+ * @property {(e?: Event) => void} handleLanternChange
+ * @property {(e?: Event) => void} handleScreenShowChange
+ * @property {(e?: Event) => void} handleGridProjectionChange
+ * @property {(e?: Event) => void} handleToroidalChange
+ * @property {(e?: Event) => void} handleStableStopChange
  * @property {() => void} handleCopyUrlButton
  * @property {(e: KeyboardEvent) => void} handleKeyDown
- * @property {(e: WheelEvent) => void} [routeWheelToScene]
+ * @property {(e?: WheelEvent) => void} [routeWheelToScene]
  */
 
 /**

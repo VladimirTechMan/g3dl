@@ -404,7 +404,6 @@ export class LoopController {
     const needsRender =
       this.appResizePending ||
       resizingActive ||
-      resized ||
       inertiaActive ||
       this.renderRequested ||
       animating;

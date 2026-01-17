@@ -21,7 +21,7 @@
  */
 
 /**
- * @param {import("./dom.js").dom} dom
+ * @param {import("./dom.js").DomCache} dom
  * @param {{ signal?: AbortSignal, onHide?: (() => void) }=} opts
  */
 export function createToastController(dom, opts = {}) {

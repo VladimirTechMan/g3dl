@@ -225,14 +225,9 @@ async function handleCopyUrlButton() {
   });
 
   // Surface clipboard failures to the user (mobile browsers often hide console output).
-  // The button label already provides a brief indication; the toast adds a clearer explanation.
-  if (ok) {
-    toast.show({ kind: "info", message: UI_MSG.clipboard.copied });
-  } else {
-    toast.show({
-      kind: "warn",
-      message: UI_MSG.clipboard.failed,
-    });
+  // For success, the button label swap is sufficient and avoids toast noise.
+  if (!ok) {
+    toast.show({ kind: "warn", message: UI_MSG.clipboard.failed });
   }
 
   return ok;
