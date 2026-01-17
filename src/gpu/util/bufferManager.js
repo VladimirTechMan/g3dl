@@ -1,4 +1,6 @@
 import { G3DL_LAYOUT } from "../dataLayout.js";
+import { warn } from "../../util/log.js";
+import { LOG_MSG } from "../../util/messages.js";
 
 /**
  * BufferManager
@@ -152,10 +154,7 @@ export class BufferManager {
         }
       } else if (!this._warnedUnregisteredWrite) {
         this._warnedUnregisteredWrite = true;
-        console.warn(
-          "G3DL debug: writeBuffer() called on an unregistered buffer; size validation skipped. " +
-            "Prefer creating buffers via the renderer buffer helpers.",
-        );
+        warn(LOG_MSG.BUFFER_UNREGISTERED_WRITE);
       }
     }
 

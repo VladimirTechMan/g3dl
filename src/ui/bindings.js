@@ -12,20 +12,20 @@ import { createPanelManager } from "./panels.js";
 
 /**
  * @typedef {Object} BindUiHandlers
- * @property {() => void} step
+ * @property {() => void | Promise<void>} step
  * @property {() => void} togglePlay
- * @property {() => void} reset
+ * @property {() => void | Promise<void>} reset
  * @property {() => void} toggleFullscreen
  * @property {(e: Event) => void} handleSpeedPreview
  * @property {(e: Event) => void} handleSpeedChange
- * @property {(e: Event) => void} handleSizeChange
+ * @property {(e: Event) => void | Promise<void>} handleSizeChange
  * @property {(e: Event) => void} validateSizeInput
  * @property {(e: KeyboardEvent) => void} handleSizeKeydown
- * @property {(e: Event) => void} handleInitSizeChange
+ * @property {(e: Event) => void | Promise<void>} handleInitSizeChange
  * @property {(e: Event) => void} validateInitSizeInput
  * @property {(e: KeyboardEvent) => void} handleInitSizeKeydown
  * @property {(e: Event) => void} handleDensityPreview
- * @property {(e: Event) => void} handleDensityChange
+ * @property {(e: Event) => void | Promise<void>} handleDensityChange
  * @property {(e: Event) => void} handleCellColorChange
  * @property {(e: Event) => void} handleBgColorChange
  * @property {(e: Event) => void} handlePresetChange

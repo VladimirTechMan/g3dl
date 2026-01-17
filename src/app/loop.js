@@ -11,6 +11,9 @@
  * those are communicated via hooks.
  */
 
+import { error } from "../util/log.js";
+import { LOG_MSG } from "../util/messages.js";
+
 /**
  * @typedef {Object} LoopHooks
  * @property {() => number} getSpeedDelayMs
@@ -293,7 +296,16 @@ export class LoopController {
       const syncStats = speedDelayMs >= 200;
       changed = await this.queueStep(syncStats);
     } catch (e) {
-      console.error("Step failed:", e);
+      // Step errors are fatal for the current run session. Stop play mode and
+      // let the app decide how to surface the failure (toast/overlay/etc.).
+      error(LOG_MSG.STEP_FAILED, e);
+      if (this.hooks && typeof this.hooks.onStepError === "function") {
+        try {
+          this.hooks.onStepError(e);
+        } catch (_) {
+          // ignore
+        }
+      }
       this.stopPlaying();
       this.playTickInProgress = false;
       return;

@@ -20,7 +20,9 @@ import { bindUI } from "../ui/bindings.js";
 import { createToastController } from "../ui/toast.js";
 import { OrbitControls } from "./orbitControls.js";
 import { ScreenShowController } from "./screenshow/controller.js";
-import { debugLog, debugWarn } from "../util/log.js";
+import { debugLog, debugWarn, error } from "../util/log.js";
+import { LOG_MSG } from "../util/messages.js";
+import { UI_MSG } from "./messages.js";
 
 // DOM Elements (cached)
 const {
@@ -69,7 +71,24 @@ const APP_SIGNAL = APP_ABORT.signal;
 
 // Non-fatal, user-visible feedback (e.g., fullscreen failures) that would otherwise
 // only be visible in the console. Safe no-op if the DOM elements are absent.
-const toast = createToastController(dom, { signal: APP_SIGNAL });
+let hasStickyError = false;
+
+const toast = createToastController(dom, {
+  signal: APP_SIGNAL,
+  onHide: () => {
+    // If the user dismisses an error toast, consider the sticky error acknowledged.
+    hasStickyError = false;
+  },
+});
+
+function clearStickyError() {
+  if (!hasStickyError) return;
+  const s = typeof toast.getState === "function" ? toast.getState() : null;
+  // Only hide if the currently shown toast is the sticky error; do not stomp over newer info/warn toasts.
+  if (s && s.kind === "error") toast.hide();
+  hasStickyError = false;
+}
+
 
 /**
  * Resolve CSS length expressions (including `var(...)`, `env(...)`, `calc(...)`, `max(...)`)
@@ -199,11 +218,24 @@ function refreshSpeedFromSlider() {
 }
 
 async function handleCopyUrlButton() {
-  return copySettingsUrlToClipboard(dom, {
+  const ok = await copySettingsUrlToClipboard(dom, {
     fallbackGridSize: state.settings.gridSize,
     fallbackInitSize: state.settings.initSize,
     fallbackDensity: state.settings.density,
   });
+
+  // Surface clipboard failures to the user (mobile browsers often hide console output).
+  // The button label already provides a brief indication; the toast adds a clearer explanation.
+  if (ok) {
+    toast.show({ kind: "info", message: UI_MSG.clipboard.copied });
+  } else {
+    toast.show({
+      kind: "warn",
+      message: UI_MSG.clipboard.failed,
+    });
+  }
+
+  return ok;
 }
 
 // Controls width: keep the panel width aligned to the top button row, even when Settings/Help are open.
@@ -436,6 +468,33 @@ function queueStep(syncStats = true) {
   return loop.queueStep(syncStats);
 }
 
+/**
+ * Surface a fatal simulation step failure to the user.
+ *
+ * This should be rare. If it occurs, the most likely causes are:
+ * - a WebGPU runtime/device problem (e.g., memory pressure), or
+ * - a cross-browser shader/validation issue.
+ *
+ * The loop controller already stops play mode on step failures.
+ * This handler should remain side-effect light to avoid compounding failures.
+ *
+ * @param {any} err
+ */
+function handleStepError(err) {
+  const message = UI_MSG.sim.stepFailed;
+
+  // Avoid spamming the user if the same sticky error is already visible.
+  if (hasStickyError) {
+    const s = typeof toast.getState === "function" ? toast.getState() : null;
+    if (s && s.kind === "error" && s.message === message) return;
+  }
+
+  hasStickyError = true;
+
+  // Make the issue visible on mobile. Errors remain until dismissed.
+  toast.show({ kind: "error", message });
+}
+
 // Input (pointer/touch/mouse) state is managed by OrbitControls.
 
 /**
@@ -516,7 +575,7 @@ async function init() {
           }
         },
         onStepError: (err) => {
-          console.error("Step failed:", err);
+          handleStepError(err);
         },
       },
     });
@@ -535,14 +594,13 @@ async function init() {
     }
 
     renderer.onDeviceLost = (info) => {
-      console.error("WebGPU device lost:", info);
       stopPlaying();
       showNotSupportedMessage(
         "WebGPU device was lost (typically due to backgrounding or memory pressure). Please reload the page.",
       );
     };
   } catch (e) {
-    console.error("WebGPU initialization failed:", e);
+    error(LOG_MSG.WEBGPU_INIT_FAILED, e);
     showNotSupportedMessage(e.message);
     return;
   }
@@ -623,7 +681,32 @@ async function init() {
 
   // Resize GPU resources if grid edge differs from the renderer default.
   if (renderer && renderer.gridSize !== state.settings.gridSize) {
-    renderer.setGridSize(state.settings.gridSize);
+    try {
+      renderer.setGridSize(state.settings.gridSize);
+    } catch (e) {
+      error(LOG_MSG.GRID_ALLOC_FALLBACK, e);
+      // Fall back to the maximum size we believe this device supports (or the current renderer size).
+      const fallback =
+        typeof renderer.getMaxSupportedGridSize === "function"
+          ? renderer.getMaxSupportedGridSize()
+          : renderer.gridSize;
+      try {
+        renderer.setGridSize(fallback);
+        state.settings.gridSize = fallback;
+        sizeInput.value = String(fallback);
+        if (initSizeInput) initSizeInput.max = String(fallback);
+        toast.show({
+          kind: "warn",
+          message: UI_MSG.gpu.gridSizeReduced(fallback),
+        });
+      } catch {
+        // If even fallback fails, treat this as unsupported.
+        showNotSupportedMessage(
+          "Failed to allocate GPU resources for the configured grid size. Please reload and use a smaller grid.",
+        );
+        return;
+      }
+    }
   }
 
   // Initialize run state.settings.speed from the slider (mapping: left = slower, right = faster).
@@ -640,6 +723,7 @@ async function init() {
   handleRuleInputChange();
 
   await renderer.randomize(state.settings.density, state.settings.initSize);
+  clearStickyError();
   state.sim.population = renderer.population;
   state.sim.populationGeneration = state.sim.generation;
   updateStats();
@@ -923,13 +1007,47 @@ function handlePresetChange() {
 }
 
 /**
- * Handle manual rule input change - validate and switch to custom preset
+ * Handle manual rule input change.
+ *
+ * This handler is bound to both:
+ * - `input`: live validation / preset matching (no toast feedback)
+ * - `change`: commit/blur (safe place for user-visible warnings)
  */
-function handleRuleInputChange() {
-  // Validate inputs
+function handleRuleInputChange(e) {
+  // Validate inputs (sanitizes and updates invalid highlighting).
   const surviveValid = validateRuleInput(surviveInput);
   const birthValid = validateRuleInput(birthInput);
 
+  // Parse again after sanitization so error detection matches the current value.
+  const surviveParsed = parseRuleNumbers(surviveInput.value);
+  const birthParsed = parseRuleNumbers(birthInput.value);
+
+  const isCommit = !!(e && e.type === "change");
+
+  // Invalid values (out of range, descending ranges, etc.).
+  if (surviveParsed.hasError || birthParsed.hasError) {
+    presetSelect.value = "custom";
+
+    // Avoid spamming while typing; only toast on commit/blur.
+    if (isCommit) {
+      const which = [
+        surviveParsed.hasError ? "Survival" : null,
+        birthParsed.hasError ? "Birth" : null,
+      ]
+        .filter(Boolean)
+        .join(" and ");
+
+      toast.show({
+        kind: "warn",
+        message: UI_MSG.rules.invalid(which),
+      });
+    }
+
+    return;
+  }
+
+  // Blank input is treated as "not applied" (no error), but it's not a valid rule.
+  // Preserve the existing behavior: do not apply, and switch to custom.
   if (!surviveValid || !birthValid) {
     presetSelect.value = "custom";
     return;
@@ -967,11 +1085,19 @@ function handleRuleKeydown(e) {
 async function step() {
   // Stepping is an explicit action: collapse panels that might occlude the scene.
   closeSettingsAndHelpPanels();
+
+  // If the user is retrying after an error, clear any previously shown sticky error.
+  clearStickyError();
   // Stop play mode and wait for any in-flight step
   stopPlaying();
   await waitForIdle();
 
-  await queueStep(true);
+  try {
+    await queueStep(true);
+  } catch (err) {
+    error(LOG_MSG.SIM_STEP_ERROR, err);
+    handleStepError(err);
+  }
 }
 
 /**
@@ -1089,6 +1215,9 @@ function togglePlay() {
   // Starting a run should focus the scene: auto-close Settings and Help.
   closeSettingsAndHelpPanels();
 
+  // If the user is retrying after an error, clear any previously shown sticky error.
+  clearStickyError();
+
   // Screen show starts with Run and runs until paused/stepped/reset.
   if (state.screenshow.enabled) {
     if (screenShow) screenShow.startFromRun();
@@ -1098,19 +1227,44 @@ function togglePlay() {
 }
 
 /**
- * Reset to new random state
+ * Reset to new random state.
+ *
+ * This can be triggered from UI events that do not await the returned promise.
+ * Therefore this function must not throw (to avoid unhandled promise rejections).
+ *
+ * @param {{ showToastOnFailure?: boolean }=} opts
+ * @returns {Promise<boolean>} true on success, false on failure
  */
-async function reset() {
+async function reset(opts = {}) {
+  const { showToastOnFailure = true } = opts;
+
   stopPlaying();
   await waitForIdle();
 
   renderer.resetView();
   state.sim.generation = 0;
-  await renderer.randomize(state.settings.density, state.settings.initSize);
+
+  try {
+    await renderer.randomize(state.settings.density, state.settings.initSize);
+  } catch (e) {
+    debugWarn("Randomize/reset error:", e?.message || e);
+
+    if (showToastOnFailure) {
+      toast.show({
+        kind: "warn",
+        message: UI_MSG.gpu.allocGeneric,
+      });
+    }
+
+    return false;
+  }
+
+  clearStickyError();
   state.sim.population = renderer.population;
   state.sim.populationGeneration = state.sim.generation;
   updateStats();
   requestRender();
+  return true;
 }
 
 /**
@@ -1145,21 +1299,35 @@ function handleSpeedChange() {
  * Handle grid size input change
  */
 async function handleSizeChange() {
+  const prevSize = state.settings.gridSize;
   let value = parseInt(sizeInput.value, 10);
   const wrapper = sizeInput.parentElement;
 
+  const max =
+    renderer && typeof renderer.getMaxSupportedGridSize === "function"
+      ? renderer.getMaxSupportedGridSize()
+      : 256;
+
   if (isNaN(value) || value < 4) {
     value = 4;
-  } else {
-    const max =
-      renderer && typeof renderer.getMaxSupportedGridSize === "function"
-        ? renderer.getMaxSupportedGridSize()
-        : 256;
-    if (value > max) value = max;
+  }
+
+  let clampedToMax = false;
+  if (value > max) {
+    value = max;
+    clampedToMax = true;
   }
 
   sizeInput.value = value;
   setInvalid(wrapper, false);
+
+  // Inform the user when the value is clamped due to device limits.
+  if (clampedToMax) {
+    toast.show({
+      kind: "warn",
+      message: UI_MSG.gpu.gridSizeClamped(max),
+    });
+  }
 
   // Keep Gen0 edge HTML constraint in sync with the intended logical maximum.
   // This prevents browser-native constraint validation (based on the `max` attribute)
@@ -1183,19 +1351,31 @@ async function handleSizeChange() {
       state.sim.population = renderer.population;
       state.sim.populationGeneration = state.sim.generation;
       updateStats();
+      clearStickyError();
       requestRender(true);
     } catch (e) {
-      // Grid size too large for GPU
-      debugWarn("Grid size error:", e.message);
+      // Most common cause: the requested size exceeds the device's practical GPU limits.
+      debugWarn("Grid size error:", e?.message || e);
+
+      toast.show({
+        kind: "warn",
+        message: UI_MSG.gpu.gridSizeAllocFail(value, prevSize),
+      });
+
       // Revert to previous grid size
-      sizeInput.value = state.settings.gridSize;
-      value = state.settings.gridSize;
+      sizeInput.value = prevSize;
+      value = prevSize;
+      state.settings.gridSize = prevSize;
 
       // Restore Gen0 edge max to match the reverted grid size.
       if (initSizeInput) initSizeInput.max = String(value);
     }
   } else {
     state.settings.gridSize = value;
+    toast.show({
+      kind: "info",
+      message: UI_MSG.sim.stopToApply.gridSize,
+    });
   }
 }
 
@@ -1243,11 +1423,31 @@ function handleSizeKeydown(e) {
 }
 
 /**
- * Handle initial size input change
+ * Handle initial size input change.
+ *
+ * The initial size controls the edge length of the randomized Gen0 cube.
+ * It is clamped to [2, gridSize]. When the simulation is running, the value
+ * is stored but not applied until the user resets.
  */
 async function handleInitSizeChange() {
-  let value = parseInt(initSizeInput.value, 10);
+  const prevInitSize = state.settings.initSize;
   const wrapper = initSizeInput.parentElement;
+
+  const raw = String(initSizeInput.value || "").trim();
+
+  // Treat blank / non-numeric as "no change".
+  if (raw === "") {
+    initSizeInput.value = String(prevInitSize);
+    setInvalid(wrapper, false);
+    return;
+  }
+
+  let value = parseInt(raw, 10);
+  if (!Number.isFinite(value)) {
+    initSizeInput.value = String(prevInitSize);
+    setInvalid(wrapper, false);
+    return;
+  }
 
   // Compute the effective maximum: the Gen0 edge cannot exceed the current grid edge.
   // We also respect the input's own `max` attribute (kept in sync with grid edge)
@@ -1257,25 +1457,83 @@ async function handleInitSizeChange() {
     ? Math.min(maxAttr, state.settings.gridSize)
     : state.settings.gridSize;
 
-  if (isNaN(value) || value < 2) {
+  /** @type {string | null} */
+  let clampedMsg = null;
+
+  if (value < 2) {
     value = 2;
+    clampedMsg = UI_MSG.gpu.initSizeClampedMin;
   } else if (value > max) {
     value = max;
+    clampedMsg = UI_MSG.gpu.initSizeClampedMax(max);
   }
 
-  initSizeInput.value = value;
+  initSizeInput.value = String(value);
   setInvalid(wrapper, false);
+
+  // Nothing to do if the logical value didn't change.
+  if (value === prevInitSize) {
+    state.settings.initSize = value;
+    return;
+  }
+
   state.settings.initSize = value;
 
-  // Apply immediately when simulation is not running (on blur/change as well as Enter).
-  if (!state.sim.isPlaying) {
+  if (clampedMsg) {
+    toast.show({
+      kind: "warn",
+      message: clampedMsg,
+    });
+  }
+
+  // Only apply immediately when simulation is not running.
+  if (state.sim.isPlaying) {
+    toast.show({
+      kind: "info",
+      message: UI_MSG.sim.stopToApply.initSize,
+    });
+    return;
+  }
+
+  try {
     await waitForIdle();
     state.sim.generation = 0;
     await renderer.randomize(state.settings.density, state.settings.initSize);
+    clearStickyError();
     state.sim.population = renderer.population;
     state.sim.populationGeneration = state.sim.generation;
     updateStats();
     requestRender();
+  } catch (e) {
+    debugWarn("Init size apply error:", e?.message || e);
+
+    // Revert UI/state to previous value.
+    state.settings.initSize = prevInitSize;
+    initSizeInput.value = String(prevInitSize);
+    setInvalid(wrapper, false);
+
+    toast.show({
+      kind: "warn",
+      message: UI_MSG.gpu.initSizeApplyFail(value, prevInitSize),
+    });
+
+    // Attempt to restore a consistent Gen0 state.
+    try {
+      await waitForIdle();
+      state.sim.generation = 0;
+      await renderer.randomize(state.settings.density, prevInitSize);
+      clearStickyError();
+      state.sim.population = renderer.population;
+      state.sim.populationGeneration = state.sim.generation;
+      updateStats();
+      requestRender();
+    } catch (e2) {
+      error(LOG_MSG.RECOVER_INIT_SIZE_FAILED, e2);
+      toast.show({
+        kind: "error",
+        message: UI_MSG.sim.recoverFailed,
+      });
+    }
   }
 }
 
@@ -1332,17 +1590,63 @@ function scheduleDensityTipHide(delayMs) {
 }
 
 /**
- * Handle state.settings.density slider change (on release)
+ * Handle state.settings.density slider change (on release).
+ *
+ * Note: some callers may trigger this from global pointerup handlers. To avoid
+ * duplicate commits when both pointerup and native 'change' fire, we debounce
+ * identical commits over a short window.
  */
-function handleDensityChange() {
-  state.settings.density = parseInt(densitySlider.value, 10) / 100;
+let lastDensityCommitPct = null;
+let lastDensityCommitTimeMs = 0;
+
+async function handleDensityChange() {
+  const prevDensity = state.settings.density;
+
+  const sliderPct = parseInt(densitySlider.value, 10);
+  if (!Number.isFinite(sliderPct)) return;
+
+  // Debounce identical commits (pointerup-global + native 'change' double-fire).
+  const now = performance.now();
+  if (lastDensityCommitPct === sliderPct && now - lastDensityCommitTimeMs < 250) {
+    return;
+  }
+  lastDensityCommitPct = sliderPct;
+  lastDensityCommitTimeMs = now;
+
+  state.settings.density = sliderPct / 100;
   densityTip.textContent = Math.round(state.settings.density * 100) + "%";
 
   scheduleDensityTipHide(1000);
 
-  // Only apply state.settings.density if simulation is not running
-  if (!state.sim.isPlaying) {
-    reset();
+  // Only apply density when simulation is not running.
+  if (state.sim.isPlaying) {
+    toast.show({
+      kind: "info",
+      message: UI_MSG.sim.stopToApply.density,
+    });
+    return;
+  }
+
+  const ok = await reset({ showToastOnFailure: false });
+  if (ok) return;
+
+  // Revert to previous value on failure.
+  state.settings.density = prevDensity;
+  const prevPct = Math.round(prevDensity * 100);
+  densitySlider.value = String(prevPct);
+  densityTip.textContent = prevPct + "%";
+
+  toast.show({
+    kind: "warn",
+    message: UI_MSG.gpu.densityApplyFail(sliderPct, prevPct),
+  });
+
+  const restored = await reset({ showToastOnFailure: false });
+  if (!restored) {
+    toast.show({
+      kind: "error",
+      message: UI_MSG.sim.recoverFailed,
+    });
   }
 }
 
@@ -1384,7 +1688,7 @@ function handleDensityPointerUpGlobal() {
 
   // If the release did not trigger a native 'change' (browser quirk), commit here.
   if (Number.isFinite(sliderPct) && sliderPct !== statePct) {
-    handleDensityChange();
+    void handleDensityChange();
     return;
   }
 
@@ -1570,5 +1874,5 @@ function handleKeyDown(e) {
 
 // Start the application
 init().catch((err) => {
-  console.error("Failed to initialize:", err);
+  error(LOG_MSG.INIT_FAILED, err);
 });

@@ -47,7 +47,8 @@ import {
   commitCameraOverrideToUser as commitCameraOverrideToUserImpl,
 } from "./cameraControls.js";
 
-import { debugWarn } from "../util/log.js";
+import { debugWarn, error, warn } from "../util/log.js";
+import { LOG_MSG } from "../util/messages.js";
 
 
 // Packed cell coordinate format: 10 bits per axis.
@@ -401,7 +402,7 @@ export class WebGPURenderer {
     // Surface this to the app so it can stop the simulation and prompt the user.
     this.device.lost.then((info) => {
       this.deviceLost = true;
-      console.error("WebGPU device lost:", info);
+      error(LOG_MSG.WEBGPU_DEVICE_LOST, info);
       if (typeof this.onDeviceLost === "function") {
         try {
           this.onDeviceLost(info);
@@ -626,7 +627,7 @@ export class WebGPURenderer {
       );
     })()
       .catch((e) => {
-        console.warn("AABB pipeline compilation failed; Screensaver targeting will be disabled", e);
+        warn(LOG_MSG.AABB_PIPELINE_FAILED, e);
         return false;
       })
       .finally(() => {

@@ -74,6 +74,9 @@ export function bindControls(dom, handlers) {
   add(d.presetSelect, "change", handlers.handlePresetChange);
   add(d.surviveInput, "input", handlers.handleRuleInputChange);
   add(d.birthInput, "input", handlers.handleRuleInputChange);
+  // Use "change" (blur/commit) for commit-only behaviors (e.g., toast warnings).
+  add(d.surviveInput, "change", handlers.handleRuleInputChange);
+  add(d.birthInput, "change", handlers.handleRuleInputChange);
   add(d.surviveInput, "keydown", handlers.handleRuleKeydown);
   add(d.birthInput, "keydown", handlers.handleRuleKeydown);
 
