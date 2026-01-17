@@ -89,7 +89,6 @@ function clearStickyError() {
   hasStickyError = false;
 }
 
-
 /**
  * Resolve CSS length expressions (including `var(...)`, `env(...)`, `calc(...)`, `max(...)`)
  * into device pixels by applying them to a real CSS property and reading the computed style.
@@ -198,6 +197,7 @@ function createStatsViewportPin({ signal }) {
 
 const scheduleStatsViewportPin = createStatsViewportPin({ signal: APP_SIGNAL });
 
+// Keep scrollable panels sized to the iOS visual viewport (landscape toolbar correctness).
 // Game rule presets (definition lives in settings.js)
 const presets = RULE_PRESETS;
 
@@ -301,7 +301,6 @@ function scheduleResizeWork() {
     else requestRender(true);
   });
 }
-
 
 // State
 let renderer = null;
@@ -879,7 +878,6 @@ function setupEventListeners() {
   return uiBindings;
 }
 
-
 /**
  * Parse rules from input fields
  */
@@ -1022,7 +1020,6 @@ function validateRuleInput(input, opts = undefined) {
 
   return isValid;
 }
-
 
 /**
  * Handle preset selection change
@@ -1682,7 +1679,6 @@ async function handleDensityChange() {
     });
   }
 }
-
 
 /**
  * Mark density slider interaction as active (for robust tooltip teardown).
