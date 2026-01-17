@@ -1,32 +1,32 @@
 import { G3DL_LAYOUT } from "./dataLayout.js";
 import {
   createSimulationPipeline as createSimulationPipelineImpl,
-  createExtractPipeline as createExtractPipelineImpl,
-  createInitPipeline as createInitPipelineImpl,
-  createDrawArgsPipeline as createDrawArgsPipelineImpl,
+  _createExtractPipeline as createExtractPipelineImpl,
+  _createInitPipeline as createInitPipelineImpl,
+  _createDrawArgsPipeline as createDrawArgsPipelineImpl,
   createAabbPipelines as createAabbPipelinesImpl,
 } from "./pipelines/compute.js";
 import {
   createCellsRenderPipeline,
-  createGridProjectionPipeline as createGridProjectionPipelineImpl,
-  createBackgroundPipeline as createBackgroundPipelineImpl,
+  _createGridProjectionPipeline as createGridProjectionPipelineImpl,
+  _createBackgroundPipeline as createBackgroundPipelineImpl,
 } from "./pipelines/render.js";
 import {
-  createCubeGeometry as createCubeGeometryImpl,
-  rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
+  _createCubeGeometry as createCubeGeometryImpl,
+  _rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
 } from "./resources/geometry.js";
 import {
-  createGridBuffers as createGridBuffersImpl,
-  destroyGridResources as destroyGridResourcesImpl,
+  _createGridBuffers as createGridBuffersImpl,
+  _destroyGridResources as destroyGridResourcesImpl,
 } from "./resources/grid.js";
-import { createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
+import { _createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
 import {
-  shouldReadbackStats as shouldReadbackStatsImpl,
-  acquireReadbackSlot as acquireReadbackSlotImpl,
-  startReadback as startReadbackImpl,
+  _shouldReadbackStats as shouldReadbackStatsImpl,
+  _acquireReadbackSlot as acquireReadbackSlotImpl,
+  _startReadback as startReadbackImpl,
   requestPopulationReadback as requestPopulationReadbackImpl,
 } from "./readback.js";
-import { rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
+import { _rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
 import {
   updateFrameUniforms as updateFrameUniformsImpl,
 } from "./resources/frameUniforms.js";
@@ -415,7 +415,7 @@ export class WebGPURenderer {
     this.maxBufferSize = this.device.limits.maxStorageBufferBindingSize;
 
     // Configure the AABB reduction kernel size based on device limits.
-    this.aabbWorkgroupSize = this.chooseAabbWorkgroupSize();
+    this.aabbWorkgroupSize = this._chooseAabbWorkgroupSize();
 
     // Derive a safe maximum grid size from per-buffer limits (per-binding) AND a conservative total-memory heuristic.
     // One cell = 4 bytes (u32). Each grid buffer must fit within maxStorageBufferBindingSize (and maxBufferSize).
@@ -494,14 +494,14 @@ export class WebGPURenderer {
     this.resize({ force: true });
 
     // Kick off pipeline compilation early, while we allocate buffers.
-    const pipelinesPromise = this.ensureEssentialPipelines();
-    this.createCubeGeometry();
-    this.createUniformBuffer();
-    this.createGridBuffers();
-    this.createDrawArgsResources();
+    const pipelinesPromise = this._ensureEssentialPipelines();
+    this._createCubeGeometry();
+    this._createUniformBuffer();
+    this._createGridBuffers();
+    this._createDrawArgsResources();
     // Wait for essential pipelines to be ready before building bind groups.
     await pipelinesPromise;
-    this.rebuildBindGroups();
+    this._rebuildBindGroups();
 
     if (G3DL_LAYOUT.DEBUG) {
       // Validate JS<->WGSL buffer contracts early (debug-only).
@@ -520,7 +520,7 @@ export class WebGPURenderer {
    *
    * @returns {number} workgroupSizeX (power of two, >= 1)
    */
-  chooseAabbWorkgroupSize() {
+  _chooseAabbWorkgroupSize() {
     const lim = this.device?.limits;
     if (!lim) return 256;
 
@@ -565,7 +565,7 @@ export class WebGPURenderer {
     if (typeof this.device.createComputePipelineAsync === "function") {
       return await this.device.createComputePipelineAsync(desc);
     }
-    return this.device.createComputePipeline(desc);
+    return this.device._createSimulationPipeline(desc);
   }
 
   /**
@@ -577,7 +577,7 @@ export class WebGPURenderer {
     if (typeof this.device.createRenderPipelineAsync === "function") {
       return await this.device.createRenderPipelineAsync(desc);
     }
-    return this.device.createRenderPipeline(desc);
+    return this.device._createCellsRenderPipeline(desc);
   }
 
   /**
@@ -586,17 +586,17 @@ export class WebGPURenderer {
    *
    * Optional pipelines (e.g. the AABB pass) are compiled lazily when first used.
    */
-  async ensureEssentialPipelines() {
+  async _ensureEssentialPipelines() {
     if (this._ensureEssentialPipelinesPromise) return this._ensureEssentialPipelinesPromise;
     this._ensureEssentialPipelinesPromise = (async () => {
       await Promise.all([
-        this.createComputePipeline(),
-        this.createExtractPipeline(),
-        this.createInitPipeline(),
-        this.createDrawArgsPipeline(),
-        this.createRenderPipeline(),
-        this.createGridProjectionPipeline(),
-        this.createBackgroundPipeline(),
+        this._createSimulationPipeline(),
+        this._createExtractPipeline(),
+        this._createInitPipeline(),
+        this._createDrawArgsPipeline(),
+        this._createCellsRenderPipeline(),
+        this._createGridProjectionPipeline(),
+        this._createBackgroundPipeline(),
       ]);
     })();
     return this._ensureEssentialPipelinesPromise;
@@ -608,7 +608,7 @@ export class WebGPURenderer {
    *
    * @returns {Promise<boolean>} true if ready
    */
-  async ensureAabbPipelines() {
+  async _ensureAabbPipelines() {
     if (this.aabbPipeline && this.aabbArgsPipeline && this.aabbBindGroup && this.aabbArgsBindGroup) {
       return true;
     }
@@ -616,9 +616,9 @@ export class WebGPURenderer {
     if (this._ensureAabbPipelinesPromise) return await this._ensureAabbPipelinesPromise;
 
     this._ensureAabbPipelinesPromise = (async () => {
-      await this.createAabbPipeline();
+      await this._createAabbPipelines();
       // Bind groups depend on the pipeline layouts.
-      this.rebuildBindGroups();
+      this._rebuildBindGroups();
       return !!(
         this.aabbPipeline &&
         this.aabbArgsPipeline &&
@@ -637,27 +637,27 @@ export class WebGPURenderer {
     return await this._ensureAabbPipelinesPromise;
   }
 
-  async createComputePipeline() {
+  async _createSimulationPipeline() {
     return await createSimulationPipelineImpl(this);
   }
 
-  async createExtractPipeline() {
+  async _createExtractPipeline() {
     return await createExtractPipelineImpl(this);
   }
 
-  async createAabbPipeline() {
+  async _createAabbPipelines() {
     await createAabbPipelinesImpl(this);
   }
 
-  async createInitPipeline() {
+  async _createInitPipeline() {
     return await createInitPipelineImpl(this);
   }
 
-  async createDrawArgsPipeline() {
+  async _createDrawArgsPipeline() {
     return await createDrawArgsPipelineImpl(this);
   }
 
-  createDrawArgsResources() {
+  _createDrawArgsResources() {
     // Create once; updated by a compute pass each simulation step.
     if (!this.indirectArgsBuffer) {
       this.indirectArgsBuffer = this._createBuffer("indirectArgsBuffer", {
@@ -679,32 +679,32 @@ export class WebGPURenderer {
 
     // Safe default until first extract pass runs
     this._writeIndirectDrawArgsDefault();
-    this.updateDrawArgsParams();
+    this._updateDrawArgsParams();
   }
 
-  updateDrawArgsParams() {
+  _updateDrawArgsParams() {
     this._writeDrawArgsParams(this.indexCount, this.maxCells);
   }
 
-  rebuildBindGroups() {
+  _rebuildBindGroups() {
     rebuildBindGroupsImpl(this);
   }
 
 
 
-  shouldReadbackStats(force) {
+  _shouldReadbackStats(force) {
     return shouldReadbackStatsImpl(this, force);
   }
 
 
 
-  async acquireReadbackSlot(forceWait) {
+  async _acquireReadbackSlot(forceWait) {
     return await acquireReadbackSlotImpl(this, forceWait);
   }
 
 
 
-  startReadback(slot, stepGeneration) {
+  _startReadback(slot, stepGeneration) {
     return startReadbackImpl(this, slot, stepGeneration);
   }
 
@@ -756,7 +756,7 @@ export class WebGPURenderer {
     }
 
     // Lazily compile the pipelines used by this optional feature.
-    const ready = await this.ensureAabbPipelines();
+    const ready = await this._ensureAabbPipelines();
     if (
       !ready ||
       !this.aabbPipeline ||
@@ -870,34 +870,34 @@ export class WebGPURenderer {
     }
   }
 
-  async createRenderPipeline() {
+  async _createCellsRenderPipeline() {
     return await createCellsRenderPipeline(this);
   }
-  async createGridProjectionPipeline() {
+  async _createGridProjectionPipeline() {
     return await createGridProjectionPipelineImpl(this);
   }
 
-  rebuildGridProjectionInstances() {
+  _rebuildGridProjectionInstances() {
     rebuildGridProjectionInstancesImpl(this);
   }
 
-  async createBackgroundPipeline() {
+  async _createBackgroundPipeline() {
     return await createBackgroundPipelineImpl(this);
   }
 
-  createCubeGeometry() {
+  _createCubeGeometry() {
     createCubeGeometryImpl(this);
   }
 
-  destroyGridResources() {
+  _destroyGridResources() {
     destroyGridResourcesImpl(this);
   }
 
-  createGridBuffers() {
+  _createGridBuffers() {
     createGridBuffersImpl(this);
   }
 
-  createUniformBuffer() {
+  _createUniformBuffer() {
     createUniformBufferImpl(this);
   }
 
@@ -921,11 +921,11 @@ export class WebGPURenderer {
     this.population = 0;
     this.generation = 0;
     this.lastStepChanged = true;
-    this.createGridBuffers();
-    this.createDrawArgsResources();
-    this.rebuildBindGroups();
+    this._createGridBuffers();
+    this._createDrawArgsResources();
+    this._rebuildBindGroups();
     // Grid projection faces depend on gridSize/cellSize.
-    this.rebuildGridProjectionInstances();
+    this._rebuildGridProjectionInstances();
 
     if (G3DL_LAYOUT.DEBUG) {
       G3DL_LAYOUT.assertRenderer(this);
@@ -984,7 +984,7 @@ export class WebGPURenderer {
 
     // Randomization should update UI state immediately, so we sync stats here.
     const syncStats = true;
-    const slot = await this.acquireReadbackSlot(syncStats);
+    const slot = await this._acquireReadbackSlot(syncStats);
 
     const encoder = this.device.createCommandEncoder();
 
@@ -1047,7 +1047,7 @@ export class WebGPURenderer {
 
     // Stats correspond to generation 0.
     if (slot >= 0) {
-      await this.startReadback(slot, 0);
+      await this._startReadback(slot, 0);
     }
   }
 
@@ -1090,10 +1090,10 @@ export class WebGPURenderer {
     }
 
     // Schedule a readback only when needed (or if sync requested)
-    const doReadback = this.shouldReadbackStats(syncStats);
+    const doReadback = this._shouldReadbackStats(syncStats);
     let slot = -1;
     if (doReadback) {
-      slot = await this.acquireReadbackSlot(syncStats);
+      slot = await this._acquireReadbackSlot(syncStats);
     }
 
     const encoder = this.device.createCommandEncoder();
@@ -1166,7 +1166,7 @@ export class WebGPURenderer {
     this.generation = stepGeneration;
 
     if (slot >= 0) {
-      const p = this.startReadback(slot, stepGeneration);
+      const p = this._startReadback(slot, stepGeneration);
       if (syncStats) {
         await p;
         return this.lastStepChanged;
@@ -1196,7 +1196,7 @@ export class WebGPURenderer {
     // Force "changed" true for the UI/controls.
     this._queueWriteU32(this.changeCounterBuffer, 0, this._u32_1);
 
-    const slot = await this.acquireReadbackSlot(syncStats);
+    const slot = await this._acquireReadbackSlot(syncStats);
 
     const encoder = this.device.createCommandEncoder();
 
@@ -1243,7 +1243,7 @@ export class WebGPURenderer {
     // Extract does not advance generation; stats correspond to the current generation number.
     const gen = this.generation;
     if (slot >= 0) {
-      const p = this.startReadback(slot, gen);
+      const p = this._startReadback(slot, gen);
       if (syncStats) {
         await p;
       }

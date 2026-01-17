@@ -7,7 +7,7 @@
  *  - drawArgsBindGroup
  *  - optional gridProjBindGroup, aabbBindGroup, aabbArgsBindGroup
  */
-export function rebuildBindGroups(r) {
+export function _rebuildBindGroups(r) {
   if (!r.device) throw new Error("WebGPU device not initialized.");
 
   // Background bind group (constant binding)

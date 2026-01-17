@@ -7,7 +7,7 @@
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function createUniformBuffer(r) {
+export function _createUniformBuffer(r) {
   r.uniformBuffer = r._createBuffer("uniformBuffer", {
     // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 288 bytes),
     // but we keep extra room to allow future expansion without reallocating.

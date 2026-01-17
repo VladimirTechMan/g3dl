@@ -20,7 +20,7 @@ import {
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function destroyGridResources(r) {
+export function _destroyGridResources(r) {
   const tryUnmap = (b) => {
     try {
       if (b) b.unmap();
@@ -87,9 +87,9 @@ export function destroyGridResources(r) {
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function createGridBuffers(r) {
+export function _createGridBuffers(r) {
   // Clean up old GPU resources to avoid leaks when resizing the grid
-  destroyGridResources(r);
+  _destroyGridResources(r);
 
   const total = r.gridSize ** 3;
 
@@ -147,7 +147,7 @@ export function createGridBuffers(r) {
   r.lastAabb = null;
 
   // Update indirect draw args params (maxCells may have changed)
-  r.updateDrawArgsParams();
+  r._updateDrawArgsParams();
 
   // Per-grid parameter buffers
   r.computeParamsBuffer = r._createBuffer("computeParamsBuffer", {

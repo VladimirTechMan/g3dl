@@ -31,7 +31,7 @@ export async function createSimulationPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function createExtractPipeline(r) {
+export async function _createExtractPipeline(r) {
   if (r.extractPipeline) return r.extractPipeline;
   const code = G3DL_SHADERS.extract({ workgroupSize: r.workgroupSize });
   const mod = r._getShaderModule(code);
@@ -48,7 +48,7 @@ export async function createExtractPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function createInitPipeline(r) {
+export async function _createInitPipeline(r) {
   if (r.initPipeline) return r.initPipeline;
   const code = G3DL_SHADERS.init({ workgroupSize: r.workgroupSize });
   const mod = r._getShaderModule(code);
@@ -65,7 +65,7 @@ export async function createInitPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function createDrawArgsPipeline(r) {
+export async function _createDrawArgsPipeline(r) {
   if (r.drawArgsPipeline) return r.drawArgsPipeline;
   const code = G3DL_SHADERS.drawArgs();
   const mod = r._getShaderModule(code);
@@ -79,7 +79,7 @@ export async function createDrawArgsPipeline(r) {
 /**
  * Create (or reuse) AABB pipelines used by Screen show camera targeting.
  *
- * This optional feature is compiled lazily via WebGPURenderer.ensureAabbPipelines().
+ * This optional feature is compiled lazily via WebGPURenderer._ensureAabbPipelines().
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<void>}
