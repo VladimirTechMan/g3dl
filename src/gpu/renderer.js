@@ -565,7 +565,9 @@ export class WebGPURenderer {
     if (typeof this.device.createComputePipelineAsync === "function") {
       return await this.device.createComputePipelineAsync(desc);
     }
-    return this.device._createSimulationPipeline(desc);
+    // Fall back to synchronous pipeline creation when the async helpers are not
+    // available (some implementations only expose create*Pipeline()).
+    return this.device.createComputePipeline(desc);
   }
 
   /**
@@ -577,7 +579,9 @@ export class WebGPURenderer {
     if (typeof this.device.createRenderPipelineAsync === "function") {
       return await this.device.createRenderPipelineAsync(desc);
     }
-    return this.device._createCellsRenderPipeline(desc);
+    // Fall back to synchronous pipeline creation when the async helpers are not
+    // available (some implementations only expose create*Pipeline()).
+    return this.device.createRenderPipeline(desc);
   }
 
   /**
