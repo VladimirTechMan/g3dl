@@ -39,24 +39,12 @@
   --safe-inset-right: env(safe-area-inset-right, 0px);
   --safe-inset-bottom: env(safe-area-inset-bottom, 0px);
 
-  /* Larger spacing for panels / multi-button chrome. */
-  --hud-pad: 24px;
+  /* Spacing for HUD elements (panels / buttons / corner chrome). */
+  --hud-pad: 12px;
   --hud-inset-top: max(var(--hud-pad), var(--safe-inset-top));
   --hud-inset-left: max(var(--hud-pad), var(--safe-inset-left));
   --hud-inset-right: max(var(--hud-pad), var(--safe-inset-right));
   --hud-inset-bottom: max(var(--hud-pad), var(--safe-inset-bottom));
-
-  /*
-   * Insets used by the iOS `visualViewport` pinning logic (see createStatsViewportPin() in src/app/app.js).
-   *
-   * These variables exist so the JS pinning code can respect the same responsive layout rules
-   * as the CSS.
-   *
-   * On coarse-pointer devices, these are overridden in the mobile media query to match the tighter
-   * corner spacing used by the About ("i") button.
-   */
-  --stats-inset-left: var(--hud-inset-left);
-  --stats-inset-bottom: var(--hud-inset-bottom);
 
   /*
    * Viewport height used for scrollable UI chrome (Settings/Help).
@@ -851,8 +839,8 @@ input[type="range"]::-moz-range-thumb {
 /* Stats */
 #stats {
   position: fixed;
-  bottom: var(--stats-inset-bottom);
-  left: var(--stats-inset-left);
+  bottom: var(--hud-inset-bottom);
+  left: var(--hud-inset-left);
   pointer-events: auto;
   touch-action: auto;
   z-index: 90;
@@ -1036,23 +1024,6 @@ textarea {
 
     /* Slightly tighten edge padding to offset the wider buttons. */
     --controls-edge-pad: 14px;
-
-    /*
-     * Mobile HUD insets:
-     * - Use a smaller base pad so corner elements have more room on small screens.
-     */
-    --hud-pad: 12px;
-    --hud-inset-top: max(var(--hud-pad), var(--safe-inset-top));
-    --hud-inset-left: max(var(--hud-pad), var(--safe-inset-left));
-    --hud-inset-right: max(var(--hud-pad), var(--safe-inset-right));
-    --hud-inset-bottom: max(var(--hud-pad), var(--safe-inset-bottom));
-
-    /*
-     * Match the stats panel positioning to the same corner-spacing rules used by other mobile HUD elements.
-     * This is also consumed by the iOS `visualViewport` pinning logic.
-     */
-    --stats-inset-left: var(--hud-inset-left);
-    --stats-inset-bottom: var(--hud-inset-bottom);
   }
 
   /* iOS Safari: prevent focus auto-zoom by keeping form controls at >= 16px.
@@ -1080,11 +1051,6 @@ textarea {
 
   #infoBtn.active {
     background: transparent;
-  }
-
-  #stats {
-    bottom: var(--stats-inset-bottom);
-    left: var(--stats-inset-left);
   }
 
   /* Keep the header hidden unless explicitly toggled via the "i" button. */

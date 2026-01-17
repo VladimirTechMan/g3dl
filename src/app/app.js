@@ -69,6 +69,9 @@ const {
 const APP_ABORT = new AbortController();
 const APP_SIGNAL = APP_ABORT.signal;
 
+// CSS fallback used when a HUD inset custom property cannot be resolved.
+const HUD_PAD_FALLBACK_PX = 12;
+
 // Non-fatal, user-visible feedback (e.g., fullscreen failures) that would otherwise
 // only be visible in the console. Safe no-op if the DOM elements are absent.
 let hasStickyError = false;
@@ -97,6 +100,13 @@ function clearStickyError() {
  * so values like `max(24px, calc(env(...) + 24px))` cannot be parsed with parseFloat().
  */
 let _cssLengthProbeEl = null;
+const CSS_LENGTH_PROBE_PROP_BY_AXIS = {
+  top: "paddingTop",
+  left: "paddingLeft",
+  right: "paddingRight",
+  bottom: "paddingBottom",
+};
+
 function resolveCssLengthPx(expr, { axis = "left", fallbackPx = 0 } = {}) {
   // Ensure we only touch the DOM after it exists.
   const parent = document.body || document.documentElement;
@@ -115,26 +125,29 @@ function resolveCssLengthPx(expr, { axis = "left", fallbackPx = 0 } = {}) {
 
   const el = _cssLengthProbeEl;
   if (!el) return fallbackPx;
-
-  // Map axis => padding property.
-  const prop =
-    axis === "right"
-      ? "paddingRight"
-      : axis === "bottom"
-        ? "paddingBottom"
-        : "paddingLeft";
+  // Map axis => a padding property used as a CSS length probe.
+  const prop = CSS_LENGTH_PROBE_PROP_BY_AXIS[axis] || CSS_LENGTH_PROBE_PROP_BY_AXIS.left;
 
   el.style[prop] = expr;
-  const cs = getComputedStyle(el);
-  const raw =
-    prop === "paddingRight"
-      ? cs.paddingRight
-      : prop === "paddingBottom"
-        ? cs.paddingBottom
-        : cs.paddingLeft;
+  const raw = getComputedStyle(el)[prop];
 
   const px = parseFloat(raw);
   return Number.isFinite(px) ? px : fallbackPx;
+}
+
+/**
+ * Read the HUD inset custom properties (top/left/right/bottom) as resolved pixel values.
+ *
+ * Keeping this behind a single helper avoids copy/pasting `resolveCssLengthPx("var(--hud-inset-..."` and
+ * ensures all HUD anchoring logic uses the same fallback policy.
+ */
+function getHudInsetsPx({ fallbackPx = HUD_PAD_FALLBACK_PX } = {}) {
+  return {
+    top: resolveCssLengthPx("var(--hud-inset-top)", { axis: "top", fallbackPx }),
+    left: resolveCssLengthPx("var(--hud-inset-left)", { axis: "left", fallbackPx }),
+    right: resolveCssLengthPx("var(--hud-inset-right)", { axis: "right", fallbackPx }),
+    bottom: resolveCssLengthPx("var(--hud-inset-bottom)", { axis: "bottom", fallbackPx }),
+  };
 }
 
 // iOS/iPadOS detection (including iPadOS reporting as Mac)
@@ -163,10 +176,8 @@ function createStatsViewportPin({ signal }) {
   function update() {
     rafId = 0;
 
-    // IMPORTANT: use the same responsive inset values as the CSS, so the pinned position matches
-    // the on-screen layout (including the tighter 12px corner spacing on mobile).
-    const insetBottom = resolveCssLengthPx("var(--stats-inset-bottom)", { axis: "bottom", fallbackPx: 24 });
-    const insetLeft = resolveCssLengthPx("var(--stats-inset-left)", { axis: "left", fallbackPx: 24 });
+    // IMPORTANT: use the same inset values as the CSS, so the pinned position matches the on-screen layout.
+    const { bottom: insetBottom, left: insetLeft } = getHudInsetsPx();
 
     const left = Math.max(0, vv.offsetLeft + insetLeft);
     const top = Math.max(
@@ -197,7 +208,6 @@ function createStatsViewportPin({ signal }) {
 
 const scheduleStatsViewportPin = createStatsViewportPin({ signal: APP_SIGNAL });
 
-// Keep scrollable panels sized to the iOS visual viewport (landscape toolbar correctness).
 // Game rule presets (definition lives in settings.js)
 const presets = RULE_PRESETS;
 
@@ -276,8 +286,7 @@ function syncControlsWidthToButtonRow() {
   //   max-width: calc(100vw - var(--hud-inset-left) - var(--hud-inset-right));
   // Use visualViewport width when available (mobile pinch/zoom), otherwise fallback to layout viewport.
   const viewportW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const insetLeft = resolveCssLengthPx("var(--hud-inset-left)", { axis: "left", fallbackPx: 24 });
-  const insetRight = resolveCssLengthPx("var(--hud-inset-right)", { axis: "right", fallbackPx: 24 });
+  const { left: insetLeft, right: insetRight } = getHudInsetsPx();
   const maxAllowed = Math.max(0, viewportW - insetLeft - insetRight);
   target = Math.min(target, maxAllowed);
 
