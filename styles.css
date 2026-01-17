@@ -894,9 +894,79 @@ input[type="range"]::-moz-range-thumb {
   font-style: italic;
 }
 
-/* Info button (mobile only) */
+/* Bottom-right info panel: GitHub link (desktop) + About/GitHub (mobile). */
+#infoPanel {
+  position: fixed;
+  right: var(--hud-inset-right);
+  bottom: var(--hud-inset-bottom);
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  padding: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 95;
+}
+
+/* About button is mobile-only; GitHub is visible on all platforms. */
 #infoBtn {
   display: none;
+}
+
+.corner-icon-btn,
+.corner-icon-link {
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  border-radius: 12px;
+  transition:
+    transform var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.corner-icon-link {
+  text-decoration: none;
+}
+
+.corner-icon-btn:hover,
+.corner-icon-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* Keep the About ("i") button background stable on touch devices.
+   iOS Safari can leave :hover styles "stuck" after a tap.
+*/
+#infoBtn.corner-icon-btn:hover,
+#infoBtn.corner-icon-btn:active {
+  background: transparent;
+}
+
+.corner-icon-btn:active,
+.corner-icon-link:active {
+  transform: scale(0.96);
+}
+
+.corner-icon-btn:focus-visible,
+.corner-icon-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
+}
+
+#githubLink svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: currentColor;
 }
 
 
@@ -993,46 +1063,23 @@ textarea {
   .panel-body textarea {
     font-size: var(--panel-font-size);
   }
-  /* About (mobile): hide the permanent header and use the "i" button instead. */
-  /* About/Info button: meet touch target guidance */
+  /* Mobile: show About and GitHub as a combined bottom-right info panel. */
+  #infoPanel {
+    width: calc((var(--icon-btn-size) * 2) + 8px);
+    justify-content: space-between;
+  }
+
+  /* About/Info button: use typography instead of an SVG icon. */
   #infoBtn {
     display: flex;
-    position: fixed;
-    right: var(--hud-inset-right);
-    bottom: var(--hud-inset-bottom);
-    width: var(--icon-btn-size);
-    height: var(--icon-btn-size);
-    padding: 0;
-    border-radius: 14px;
-    color: rgba(255, 255, 255, 0.95);
-    cursor: pointer;
-    z-index: 95;
-    transition:
-      transform var(--transition-fast),
-      box-shadow var(--transition-fast),
-      background var(--transition-fast),
-      border-color var(--transition-fast);
     font-size: 22px;
     font-weight: 700;
     font-style: italic;
     font-family: Georgia, serif;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  }
-
-  #infoBtn:active {
-    transform: scale(0.96);
   }
 
   #infoBtn.active {
-    /* Keep the same chrome when the About panel is open. */
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  }
-
-  #infoBtn:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.35);
-    outline-offset: 2px;
+    background: transparent;
   }
 
   #stats {

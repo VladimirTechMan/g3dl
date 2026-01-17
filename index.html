@@ -7,14 +7,39 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes, maximum-scale=5"
     />
     <title>Game of 3D Life</title>
-    <link rel="stylesheet" href="styles.css?v=g3dl-ui-15" />
+    <link rel="stylesheet" href="styles.css?v=g3dl-ui-17" />
   </head>
   <body>
     <div id="app">
       <canvas id="glCanvas"></canvas>
 
       <div id="ui-overlay">
-        <button id="infoBtn" class="glass-chrome" title="About">i</button>
+        <div id="infoPanel" class="glass-chrome" aria-label="Links">
+          <button
+            id="infoBtn"
+            class="corner-icon-btn"
+            title="About"
+            aria-label="About"
+          >
+            i
+          </button>
+          <a
+            id="githubLink"
+            class="corner-icon-link"
+            href="https://github.com/VladimirTechMan/g3dl"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View project on GitHub"
+            aria-label="View this project on GitHub"
+          >
+            <!-- GitHub mark (official logo) -->
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 .5C5.73.5.75 5.6.75 12.02c0 5.14 3.438 9.5 8.205 11.04.6.11.82-.27.82-.58 0-.29-.01-1.05-.02-2.06-3.338.75-4.042-1.66-4.042-1.66-.546-1.42-1.334-1.8-1.334-1.8-1.09-.77.082-.76.082-.76 1.205.09 1.84 1.27 1.84 1.27 1.07 1.88 2.807 1.34 3.492 1.02.11-.8.418-1.34.762-1.65-2.665-.31-5.466-1.37-5.466-6.1 0-1.35.465-2.46 1.235-3.33-.125-.31-.535-1.57.115-3.27 0 0 1.01-.33 3.3 1.27.96-.27 1.98-.4 3-.41 1.02.01 2.04.14 3 .41 2.29-1.6 3.3-1.27 3.3-1.27.65 1.7.24 2.96.12 3.27.77.87 1.23 1.98 1.23 3.33 0 4.74-2.805 5.79-5.475 6.09.43.38.815 1.13.815 2.28 0 1.65-.015 2.98-.015 3.39 0 .32.216.7.825.58 4.765-1.54 8.2-5.9 8.2-11.04C23.25 5.6 18.27.5 12 .5z"
+              />
+            </svg>
+          </a>
+        </div>
         <header id="header" class="glass-chrome">
           <h1>Game of 3D Life</h1>
           <span class="credit">Made by Vlad for fun with GenAI</span>
