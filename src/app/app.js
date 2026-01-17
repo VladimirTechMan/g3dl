@@ -888,10 +888,21 @@ function setupEventListeners() {
 /**
  * Parse rules from input fields
  */
-function parseRuleNumbers(str) {
+function parseRuleNumbers(str, opts = undefined) {
+  const { allowTrailingHyphen = true } = opts || {};
   // Allow only digits, commas, hyphens, and whitespace.
-  // Note: we intentionally keep partial input like "5-" non-invalid while the user types.
-  const sanitized = String(str || "").replace(/[^0-9,\-\s]/g, "");
+  //
+  // Rule syntax (post-sanitization):
+  // - Single values:   "0", "13"
+  // - Ranges:          "5-7"
+  //
+  // Notes on validation:
+  // - Negative tokens like "-1" are invalid (not treated as partial ranges).
+  // - A trailing hyphen like "5-" may be tolerated while typing and ignored until completed.
+  //   On commit (blur/change), callers should set allowTrailingHyphen=false to treat it as invalid.
+  const sanitized0 = String(str || "").replace(/[^0-9,\-\s]/g, "");
+  // Normalize common range typing with spaces, e.g., "5 - 7" -> "5-7".
+  const sanitized = sanitized0.replace(/(\d)\s*-\s*(\d)/g, "$1-$2");
 
   /** @type {Set<number>} */
   const values = new Set();
@@ -899,18 +910,39 @@ function parseRuleNumbers(str) {
 
   const tokens = sanitized.split(/[\s,]+/).filter((t) => t.length > 0);
 
-  for (const token of tokens) {
-    if (token.includes("-")) {
-      // Keep behavior tolerant while typing:
-      // - "5-" or "-7" should not be treated as an error, just ignored until complete.
-      // - "5-7-8" is interpreted as "5-7" (extra segments are ignored), matching previous behavior.
-      const parts = token.split("-").map((s) => s.trim());
-      const nonEmpty = parts.filter((s) => s.length > 0);
-      if (nonEmpty.length < 2) continue;
+  for (const raw of tokens) {
+    const token = raw.trim();
+    if (!token) continue;
 
-      const start = parseInt(nonEmpty[0], 10);
-      const end = parseInt(nonEmpty[1], 10);
-      if (Number.isNaN(start) || Number.isNaN(end)) continue;
+    // Disallow standalone '-' or tokens that begin with '-' (negative numbers are invalid).
+    if (/^-+$/.test(token) || token.startsWith("-")) {
+      hasError = true;
+      break;
+    }
+
+    if (token.includes("-")) {
+      // Tolerate an in-progress range while typing (e.g., "5-") if explicitly allowed.
+      if (token.endsWith("-")) {
+        if (allowTrailingHyphen && /^\d+-$/.test(token)) {
+          continue;
+        }
+        hasError = true;
+        break;
+      }
+
+      // Strict range format: N-M
+      if (!/^\d+-\d+$/.test(token)) {
+        hasError = true;
+        break;
+      }
+
+      const [a, b] = token.split("-", 2);
+      const start = parseInt(a, 10);
+      const end = parseInt(b, 10);
+      if (Number.isNaN(start) || Number.isNaN(end)) {
+        hasError = true;
+        break;
+      }
 
       // Hard bounds: 3D Moore neighborhood has 26 neighbors (0..26).
       if (start < 0 || start > 26 || end < 0 || end > 26) {
@@ -928,8 +960,12 @@ function parseRuleNumbers(str) {
         values.add(i);
       }
     } else {
+      // Single value token
+      if (!/^\d+$/.test(token)) {
+        hasError = true;
+        break;
+      }
       const n = parseInt(token, 10);
-      if (Number.isNaN(n)) continue;
       if (n < 0 || n > 26) {
         hasError = true;
         break;
@@ -951,6 +987,7 @@ function parseRuleNumbers(str) {
 
 /**
  * Parse and apply Survival/Birth rules to the renderer.
+
  *
  * This is intentionally defensive: even if called accidentally with an invalid
  * string, it must never do unbounded work (e.g., expanding a huge range).
@@ -971,8 +1008,8 @@ function parseRules() {
 /**
  * Validate and sanitize rule input - only allow valid characters and values 0-26
  */
-function validateRuleInput(input) {
-  const parsed = parseRuleNumbers(input.value);
+function validateRuleInput(input, opts = undefined) {
+  const parsed = parseRuleNumbers(input.value, opts);
 
   // Update the input value to sanitized version (remove invalid chars only)
   if (input.value !== parsed.sanitized) {
@@ -1014,15 +1051,16 @@ function handlePresetChange() {
  * - `change`: commit/blur (safe place for user-visible warnings)
  */
 function handleRuleInputChange(e) {
+  const isCommit = !!(e && e.type === "change");
+  const parseOpts = { allowTrailingHyphen: !isCommit };
+
   // Validate inputs (sanitizes and updates invalid highlighting).
-  const surviveValid = validateRuleInput(surviveInput);
-  const birthValid = validateRuleInput(birthInput);
+  const surviveValid = validateRuleInput(surviveInput, parseOpts);
+  const birthValid = validateRuleInput(birthInput, parseOpts);
 
   // Parse again after sanitization so error detection matches the current value.
-  const surviveParsed = parseRuleNumbers(surviveInput.value);
-  const birthParsed = parseRuleNumbers(birthInput.value);
-
-  const isCommit = !!(e && e.type === "change");
+  const surviveParsed = parseRuleNumbers(surviveInput.value, parseOpts);
+  const birthParsed = parseRuleNumbers(birthInput.value, parseOpts);
 
   // Invalid values (out of range, descending ranges, etc.).
   if (surviveParsed.hasError || birthParsed.hasError) {
