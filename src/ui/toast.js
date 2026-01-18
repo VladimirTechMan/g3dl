@@ -9,7 +9,7 @@
  */
 
 /**
- * @typedef {"info"|"warn"|"error"} ToastKind
+ * @typedef {"info"|"success"|"warn"|"error"} ToastKind
  */
 
 /**
@@ -63,6 +63,7 @@ export function createToastController(dom, opts = {}) {
    */
   function defaultAutoHideMs(kind) {
     if (kind === "info") return 2500;
+    if (kind === "success") return 2500;
     if (kind === "warn") return 5000;
     return 0;
   }

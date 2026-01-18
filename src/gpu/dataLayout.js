@@ -25,20 +25,22 @@
  */
 
 const DEBUG = (() => {
+  // Debug checks are intentionally URL-scoped (not persisted) to avoid surprising
+  // "sticky" debug assertions/logging when users temporarily enable debug mode.
+  //
+  // Supported forms:
+  //   ?debug=1 | ?debug=true | ?debug=yes | ?debug=on | ?debug   -> enabled
+  //   ?debug=0 | ?debug=false | ?debug=no  | ?debug=off          -> disabled
   try {
     if (typeof location === "undefined") return false;
-    const qs = String(location.search || "");
-    if (/(?:\?|&)debug=1(?:&|$)/.test(qs)) return true;
-    // Optional toggle:
-    //   localStorage.setItem("g3dl_debug", "1")
-    if (
-      typeof localStorage !== "undefined" &&
-      localStorage &&
-      localStorage.getItem("g3dl_debug") === "1"
-    ) {
-      return true;
-    }
-    return false;
+    const params = new URLSearchParams(String(location.search || ""));
+    if (!params.has("debug")) return false;
+    const raw = params.get("debug");
+    if (raw == null) return true; // presence without value
+    const s = String(raw).trim().toLowerCase();
+    if (s === "" || s === "1" || s === "true" || s === "yes" || s === "on") return true;
+    if (s === "0" || s === "false" || s === "no" || s === "off") return false;
+    return true; // unknown values default to enabled
   } catch {
     return false;
   }

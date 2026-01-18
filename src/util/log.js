@@ -4,14 +4,12 @@
  * In production, this project aims to keep the console quiet unless something is
  * genuinely actionable (e.g., initialization failure, device loss).
  *
- * Enable debug logging by either:
- *  - adding `?debug=1` to the URL, or
- *  - setting `localStorage.g3dl_debug = "1"`.
+ * Enable debug logging by adding `?debug=1` (or `?debug=true`) to the URL.
  *
- * Passing `?debug=0` disables debug logging and persists that preference.
+ * Debug logging is intentionally URL-scoped (not persisted). This avoids
+ * surprising "sticky" debug output if a user temporarily enables debug mode and
+ * later removes `debug=1` from the URL.
  */
-
-const DEBUG_STORAGE_KEY = "g3dl_debug";
 
 function parseDebugFlag(value) {
   if (value == null) return null;
@@ -33,40 +31,12 @@ function tryGetDebugFromUrl() {
   }
 }
 
-function tryGetDebugFromStorage() {
-  try {
-    if (typeof localStorage === "undefined") return null;
-    const v = localStorage.getItem(DEBUG_STORAGE_KEY);
-    return parseDebugFlag(v);
-  } catch (_) {
-    return null;
-  }
-}
-
-function tryPersistDebugToStorage(enabled) {
-  try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(DEBUG_STORAGE_KEY, enabled ? "1" : "0");
-  } catch (_) {
-    // Ignore storage errors (private browsing, restricted environments).
-  }
-}
-
 /**
  * Whether debug logging is enabled.
- *
- * If the URL includes a `debug` parameter, it takes precedence and is persisted to
- * localStorage. This is important because the app may strip query parameters after
- * initialization when applying settings.
  */
 const DEBUG_LOG_ENABLED = (() => {
   const fromUrl = tryGetDebugFromUrl();
-  if (fromUrl != null) {
-    tryPersistDebugToStorage(fromUrl);
-    return fromUrl;
-  }
-  const fromStorage = tryGetDebugFromStorage();
-  return fromStorage != null ? fromStorage : false;
+  return fromUrl != null ? fromUrl : false;
 })();
 
 /** @param {...any} args */

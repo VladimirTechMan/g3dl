@@ -56,6 +56,8 @@ function byId(id) {
  * @property {HTMLInputElement|null} lanternCheckbox
  * @property {HTMLInputElement|null} screenShowCheckbox
  * @property {HTMLButtonElement|null} copyUrlBtn
+ * @property {HTMLElement|null} selfTestGroup
+ * @property {HTMLButtonElement|null} selfTestBtn
  * @property {HTMLInputElement|null} gridProjectionCheckbox
  * @property {HTMLElement|null} generationDisplay
  * @property {HTMLElement|null} populationDisplay
@@ -134,6 +136,8 @@ const _dom = (() => {
     byId("screenShowCheckbox")
   );
   const copyUrlBtn = /** @type {HTMLButtonElement|null} */ (byId("copyUrlBtn"));
+  const selfTestGroup = byId("selfTestGroup");
+  const selfTestBtn = /** @type {HTMLButtonElement|null} */ (byId("selfTestBtn"));
   const gridProjectionCheckbox = /** @type {HTMLInputElement|null} */ (
     byId("gridProjectionCheckbox")
   );
@@ -183,6 +187,8 @@ const _dom = (() => {
     lanternCheckbox,
     screenShowCheckbox,
     copyUrlBtn,
+    selfTestGroup,
+    selfTestBtn,
     gridProjectionCheckbox,
     generationDisplay,
     populationDisplay,

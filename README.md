@@ -29,6 +29,7 @@ Source (ES modules) under `src/`:
 - `src/app/state.js` - Centralized mutable app state and default values
 - `src/app/settings.js` - Settings schema, URL import/export, and validation
 - `src/app/loop.js` - Render/step orchestration (RAF + pacing + play loop)
+- `src/app/selfTest/selfTestSuite.js` - Debug-only deterministic correctness suite (GPU vs CPU, plus extraction validation)
 
 UI:
 - `src/ui/dom.js` - Cached DOM element references
@@ -53,6 +54,7 @@ GPU engine:
 
 Shared utilities:
 - `src/util/math3d.js` - Small allocation-free 3D math helpers (mat4/quats) used by camera + uniforms
+- `src/util/log.js` - Logging helpers; debug logging is enabled via `?debug=...` URL flag
 
 ## Requirements
 
@@ -103,7 +105,7 @@ WGSL shader code is centralized in `shaders.js` to make bindings and structs eas
 
 `src/gpu/dataLayout.js` defines the authoritative JS↔WGSL buffer layouts (uniform/params/indirect/AABB), including field offsets and the WGSL struct definitions used by the shader generators.
 
-Debug-only runtime checks can be enabled with `?debug=1` in the URL (or by setting `localStorage.g3dl_debug = "1"`).
+Debug-only runtime checks can be enabled with `?debug=1`, `?debug=true`, or simply `?debug` in the URL.
 
 ## CPU→GPU write helpers
 
@@ -111,11 +113,12 @@ All CPU-to-GPU writes use small helper methods in `renderer.js` (`_queueWrite*`)
 `device.queue.writeBuffer()` directly. A reusable scratch `ArrayBuffer` backs small parameter writes
 to avoid per-step allocations (important for UI responsiveness on mobile browsers)
 
-When debug checks are enabled (`?debug=1`), the write helpers additionally validate:
+When debug checks are enabled (`?debug=1` / `?debug=true`), the write helpers additionally validate:
 - 4-byte alignment requirements for `writeBuffer()` offsets and sizes
 - that each write stays within the expected GPUBuffer size (buffers are registered via `this._createBuffer()`)
 
-This catches layout/offset mistakes early, before they manifest as platform-specific rendering or simulation errors..
+This catches layout/offset mistakes early, before they manifest as platform-specific rendering or simulation errors.
+This catches layout/offset mistakes early, before they manifest as platform-specific rendering or simulation errors.
 
 ## Code structure (ES modules)
 
@@ -129,11 +132,24 @@ Key modules:
 - `src/gpu/dataLayout.js` — `G3DL_LAYOUT` (authoritative JS <-> WGSL buffer layout contract)
 - `src/gpu/shaders.js` — `G3DL_SHADERS` (centralized WGSL sources; imports `G3DL_LAYOUT`)
 
-### Debug checks
+### Debug checks and self-test
 
 Developer option to validate buffer layouts between JS and WGSL. The same flag also enables
-additional debug-only console logging. Enable extra assertions with:
-- `?debug=1` in the URL, or
-- `localStorage.g3dl_debug = "1"` (then reload)
+additional debug-only console logging and exposes a **Self-test** button in the Settings panel.
 
-Debug mode can reduce performance and is not intended for normal use.
+Enable debug mode with:
+- `?debug=1` / `?debug=true` / `?debug` in the URL
+
+Debug mode is intentionally **URL-scoped** (not persisted) to avoid surprising "sticky" debug
+output after a temporary debug session.
+
+#### Self-test
+
+When debug mode is enabled, the Settings panel shows a **Self-test** button. Clicking it runs a
+deterministic correctness suite that compares:
+
+- GPU simulation results vs a CPU reference implementation (same rules and boundary mode)
+- GPU extraction/compaction (live-cell list + population counter) vs the simulated grid
+
+The self-test module is dynamically imported only when the button is clicked to keep normal
+startup and runtime overhead minimal.

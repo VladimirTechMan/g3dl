@@ -91,6 +91,12 @@ export function bindControls(dom, handlers) {
     add(d.copyUrlBtn, "click", () => handlers.handleCopyUrlButton());
   }
 
+  // Debug-only: correctness self-test button.
+  // The button is present in the DOM but hidden unless ?debug=1 is set.
+  if (d.selfTestBtn && typeof handlers.handleSelfTestButton === "function") {
+    add(d.selfTestBtn, "click", () => handlers.handleSelfTestButton());
+  }
+
   // Keyboard shortcuts
   add(document, "keydown", handlers.handleKeyDown);
 

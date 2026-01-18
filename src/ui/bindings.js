@@ -41,6 +41,7 @@ import { createPanelManager } from "./panels.js";
  * @property {(e?: Event) => void} handleToroidalChange
  * @property {(e?: Event) => void} handleStableStopChange
  * @property {() => void} handleCopyUrlButton
+ * @property {() => void | Promise<void>} [handleSelfTestButton]
  * @property {(e: KeyboardEvent) => void} handleKeyDown
  * @property {(e?: WheelEvent) => void} [routeWheelToScene]
  */

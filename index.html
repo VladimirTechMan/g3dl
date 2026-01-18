@@ -449,6 +449,18 @@
                 Copy URL with settings
               </button>
             </div>
+
+            <!--
+              Debug-only: correctness self-test.
+
+              This control is only shown when the URL contains ?debug=1.
+              The self-test code is loaded on-demand via dynamic import.
+            -->
+            <div id="selfTestGroup" class="control-group copy-url-group" hidden>
+              <button id="selfTestBtn" class="copy-url-btn" type="button">
+                Self-test
+              </button>
+            </div>
           </div>
         </div>
 

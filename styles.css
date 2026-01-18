@@ -796,6 +796,10 @@ input[type="range"]::-moz-range-thumb {
   border-color: rgba(255, 90, 90, 0.8);
 }
 
+#toast[data-kind="success"] {
+  border-color: rgba(90, 220, 140, 0.78);
+}
+
 #toast[data-kind="warn"] {
   border-color: rgba(255, 196, 90, 0.75);
 }
@@ -808,6 +812,51 @@ input[type="range"]::-moz-range-thumb {
   flex: 1 1 auto;
   font-size: 0.95rem;
   line-height: 1.3;
+  display: flex;
+  /* Center-align with the icon and close button for single-line toasts. */
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-message::before {
+  content: "";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.4em;
+  height: 1.4em;
+  font-size: 1.35em;
+  line-height: 1;
+  margin-top: 0;
+  font-weight: 800;
+}
+
+#toast[data-kind="info"] .toast-message::before {
+  content: "ℹ";
+  color: rgba(74, 158, 255, 0.95);
+}
+
+#toast[data-kind="success"] .toast-message::before {
+  /*
+    Force text-style presentation (VS15) so iOS does not render this as an emoji
+    glyph (which can ignore CSS `color` and appear grey).
+  */
+  /* Use a CSS unicode escape (\FE0E), not a JS-style "\uFE0E" escape. */
+  content: "✔\FE0E";
+  color: rgba(90, 220, 140, 0.95);
+}
+
+#toast[data-kind="warn"] .toast-message::before {
+  /* Force text-style presentation (VS15) for consistent coloring on iOS. */
+  content: "⚠\FE0E";
+  color: rgba(255, 196, 90, 0.95);
+}
+
+#toast[data-kind="error"] .toast-message::before {
+  /* Force text-style presentation (VS15) for consistent coloring on iOS. */
+  content: "✖\FE0E";
+  color: rgba(255, 90, 90, 0.98);
 }
 
 .toast-close {

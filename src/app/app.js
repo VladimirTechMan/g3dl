@@ -51,6 +51,8 @@ const {
   stableStopCheckbox,
   lanternCheckbox,
   screenShowCheckbox,
+  selfTestGroup,
+  selfTestBtn,
   gridProjectionCheckbox,
   generationDisplay,
   populationDisplay,
@@ -71,6 +73,11 @@ const APP_SIGNAL = APP_ABORT.signal;
 // Non-fatal, user-visible feedback (e.g., fullscreen failures) that would otherwise
 // only be visible in the console. Safe no-op if the DOM elements are absent.
 let hasStickyError = false;
+
+// Debug-only: set to true while the correctness self-test is running.
+// OrbitControls uses this to suppress navigation while tests are in progress.
+let isSelfTesting = false;
+
 
 const toast = createToastController(dom, {
   signal: APP_SIGNAL,
@@ -442,7 +449,7 @@ async function init() {
     // Camera input controller (pointer/touch/mouse + wheel)
     orbitControls = new OrbitControls(canvas, renderer, {
       requestRender,
-      isNavLocked: () => (screenShow ? screenShow.isNavLocked() : false),
+      isNavLocked: () => isSelfTesting || (screenShow ? screenShow.isNavLocked() : false),
     });
 
     if (screenShow) {
@@ -601,6 +608,7 @@ function installUiBindings() {
     handleToroidalChange,
     handleStableStopChange,
     handleCopyUrlButton,
+    handleSelfTestButton,
     handleKeyDown,
 
     // Allow wheel zoom even when the cursor is outside the canvas (e.g., over UI panels).
@@ -612,6 +620,101 @@ function installUiBindings() {
 
   closeSettingsAndHelpPanels = uiBindings.closeSettingsAndHelpPanels;
   return uiBindings;
+}
+
+/**
+ * Debug-only: run the correctness self-test suite.
+ *
+ * The underlying test harness is dynamically imported and therefore does not
+ * impact normal load/startup costs.
+ */
+async function handleSelfTestButton() {
+  // The button exists in the DOM but is hidden unless ?debug=1 is present.
+  if (!selfTestBtn) return;
+  if (selfTestGroup && selfTestGroup.hidden) return;
+  if (isSelfTesting) return;
+  if (!renderer || !renderer.device) {
+    toast.show({ kind: "error", message: "Self-test unavailable: WebGPU not initialized." });
+    return;
+  }
+
+  isSelfTesting = true;
+
+  const prevLabel = selfTestBtn.textContent;
+  const prevDisabled = selfTestBtn.disabled;
+  const wasPlaying = !!loop?.isPlaying;
+
+  // Disable UI interactivity while testing (keep the UI responsive but prevent state changes).
+  /** @type {Array<[HTMLButtonElement|HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement, boolean]>} */
+  const disabledSnapshot = [];
+  const candidates = document.querySelectorAll(
+    "#controls button, #controls input, #controls select, #controls textarea," +
+      "#header button, #header input, #header select, #header textarea," +
+      "#settings-panel button, #settings-panel input, #settings-panel select, #settings-panel textarea," +
+      "#help-panel button, #help-panel input, #help-panel select, #help-panel textarea," +
+      "#about-panel button, #about-panel input, #about-panel select, #about-panel textarea",
+  );
+
+  for (const el of candidates) {
+    // @ts-ignore - querySelectorAll type does not refine to elements with `disabled`.
+    if (typeof el.disabled !== "boolean") continue;
+    // @ts-ignore
+    disabledSnapshot.push([el, el.disabled]);
+    // @ts-ignore
+    el.disabled = true;
+  }
+
+  // Keep the Self-test button label visible and stable while disabled.
+  selfTestBtn.disabled = true;
+  selfTestBtn.textContent = "Testing...";
+
+  const yieldToUi = () => new Promise((r) => requestAnimationFrame(() => r()));
+
+  try {
+    // Stop the main simulation loop to reduce GPU contention during tests.
+    simControl?.stopPlaying?.();
+    await simControl?.waitForIdle?.();
+    orbitControls?.cancelInteraction?.();
+
+    // Give the browser one frame to paint the updated button text.
+    await yieldToUi();
+
+    const { runSelfTestSuite } = await import("./selfTest/selfTestSuite.js");
+    const result = await runSelfTestSuite({
+      device: renderer.device,
+      workgroupSize: renderer.workgroupSize,
+      yieldToUi,
+    });
+
+    if (result.ok) {
+      toast.show({ kind: "success", message: result.message || "Self-test passed." });
+      if (wasPlaying && loop && !loop.isPlaying) loop.startPlaying();
+    } else {
+      toast.show({ kind: "error", message: result.message || "Self-test failed." });
+    }
+  } catch (e) {
+    debugWarn("Self-test failed:", e?.message || e);
+    toast.show({
+      kind: "error",
+      message:
+        "Self-test error. Check the console for details (this often indicates a WebGPU or shader issue).",
+    });
+  } finally {
+    // Restore disabled states.
+    for (const [el, wasDisabled] of disabledSnapshot) {
+      try {
+        el.disabled = wasDisabled;
+      } catch (_) {}
+    }
+
+    // Restore button label/disabled state.
+    try {
+      selfTestBtn.textContent = prevLabel;
+      selfTestBtn.disabled = prevDisabled;
+    } catch (_) {}
+
+    isSelfTesting = false;
+  }
 }
 
 /**
