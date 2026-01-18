@@ -7,7 +7,7 @@
  *  - Keep shader source audit-friendly (bindings + structs documented in one place).
  *  - Keep renderer.js focused on WebGPU wiring, not large WGSL literals.
  *
- * NOTE: Shader bindings/layouts must remain consistent with buffer packing in renderer.js.
+ * NOTE: Shader bindings/layouts must remain consistent with src/gpu/dataLayout.js (authoritative offsets/structs) and the CPU-side writes in renderer/resources.
  */
 
 import { G3DL_LAYOUT } from "./dataLayout.js";

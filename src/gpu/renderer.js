@@ -16,7 +16,10 @@ import {
   _createCubeGeometry as createCubeGeometryImpl,
   _rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
 } from "./resources/geometry.js";
-import { _createGridBuffers as createGridBuffersImpl } from "./resources/grid.js";
+import {
+  _createGridBuffers as createGridBuffersImpl,
+  _destroyGridResources as destroyGridResourcesImpl,
+} from "./resources/grid.js";
 import { _createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
 import {
   _shouldReadbackStats as shouldReadbackStatsImpl,
@@ -25,12 +28,17 @@ import {
   requestPopulationReadback as requestPopulationReadbackImpl,
 } from "./readback.js";
 import { _rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
-import {
-  updateFrameUniforms as updateFrameUniformsImpl,
-} from "./resources/frameUniforms.js";
 import { BufferManager } from "./util/bufferManager.js";
 import { hexToRgb01 } from "./util/color.js";
 import { initRenderer, resizeRenderer, destroyRenderer } from "./renderer/lifecycle.js";
+import { renderFrame as renderFrameImpl } from "./renderer/render.js";
+import {
+  stepSimulation as stepSimulationImpl,
+  extractLivingCells as extractLivingCellsImpl,
+  randomizeGrid as randomizeGridImpl,
+} from "./renderer/step.js";
+import { requestLivingCellsAABB as requestLivingCellsAABBImpl } from "./renderer/aabb.js";
+import { maybePace as maybePaceImpl } from "./renderer/pacing.js";
 import {
   ensureCameraScratch,
   syncCameraMatrix,
@@ -47,7 +55,7 @@ import {
   commitCameraOverrideToUser as commitCameraOverrideToUserImpl,
 } from "./cameraControls.js";
 
-import { error, warn } from "../util/log.js";
+import { warn } from "../util/log.js";
 import { LOG_MSG } from "../util/messages.js";
 
 
@@ -565,134 +573,11 @@ export class WebGPURenderer {
    * @returns {Promise<null|{min:number[],max:number[],count:number}>}
    */
   async requestLivingCellsAABB() {
-    if (
-      !this.device ||
-      !this.aabbDispatchArgsBuffer ||
-      !this.aabbBuffer ||
-      !this.aabbStagingBuffers ||
-      !this.atomicCounterBuffer
-    ) {
-      return null;
-    }
-
-    // Coalesce concurrent requests.
-    if (this.aabbReadbackPending && this.aabbReadbackPromise) {
-      return await this.aabbReadbackPromise;
-    }
-
-    // Lazily compile the pipelines used by this optional feature.
-    const ready = await this._ensureAabbPipelines();
-    if (
-      !ready ||
-      !this.aabbPipeline ||
-      !this.aabbArgsPipeline ||
-      !this.aabbBindGroup ||
-      !this.aabbArgsBindGroup
-    ) {
-      return null;
-    }
-
-    const slot = this.aabbReadbackSlot % this.aabbStagingBuffers.length;
-    const staging = this.aabbStagingBuffers[slot];
-    this.aabbReadbackSlot = (slot + 1) % this.aabbStagingBuffers.length;
-
-    // Initialize the accumulator: min = 0xFFFFFFFF, max = 0.
-    this._writeAabbInitAccumulator();
-
-    const enc = this.device.createCommandEncoder();
-
-    // Pass 1: generate dispatchWorkgroupsIndirect() args from the atomic live-cell counter.
-    {
-      const pass = enc.beginComputePass();
-      pass.setPipeline(this.aabbArgsPipeline);
-      pass.setBindGroup(0, this.aabbArgsBindGroup);
-      pass.dispatchWorkgroups(1);
-      pass.end();
-    }
-
-    // Pass 2: reduce live-cell coordinates into an AABB (indirect dispatch).
-    {
-      const pass = enc.beginComputePass();
-      pass.setPipeline(this.aabbPipeline);
-      pass.setBindGroup(0, this.aabbBindGroup);
-      pass.dispatchWorkgroupsIndirect(this.aabbDispatchArgsBuffer, 0);
-      pass.end();
-    }
-
-    // Copy both AABB and the current live-cell count into a staging buffer for readback.
-    enc.copyBufferToBuffer(this.aabbBuffer, 0, staging, 0, 32);
-    enc.copyBufferToBuffer(this.atomicCounterBuffer, 0, staging, 32, 4);
-    this.device.queue.submit([enc.finish()]);
-
-    // Best-effort: ensure unmapped prior to mapping
-    try {
-      staging.unmap();
-    } catch (_) {}
-
-    this.aabbReadbackPending = true;
-    this.aabbReadbackPromise = staging
-      .mapAsync(GPUMapMode.READ)
-      .then(() => {
-        const u = new Uint32Array(staging.getMappedRange());
-        const minX = u[0],
-          minY = u[1],
-          minZ = u[2];
-        const maxX = u[3],
-          maxY = u[4],
-          maxZ = u[5];
-        const count = u[8] >>> 0; // offset 32 bytes
-
-        staging.unmap();
-
-        this.aabbReadbackPending = false;
-        this.aabbReadbackPromise = null;
-
-        if (!count || minX === 0xffffffff) {
-          this.lastAabb = null;
-          return null;
-        }
-
-        const res = { min: [minX, minY, minZ], max: [maxX, maxY, maxZ], count };
-        this.lastAabb = res;
-        return res;
-      })
-      .catch(() => {
-        try {
-          staging.unmap();
-        } catch (_) {}
-        this.aabbReadbackPending = false;
-        this.aabbReadbackPromise = null;
-        return null;
-      });
-
-    return this.aabbReadbackPromise;
+    return await requestLivingCellsAABBImpl(this);
   }
 
   async maybePace(force = false) {
-    if (
-      !this.device ||
-      !this.device.queue ||
-      typeof this.device.queue.onSubmittedWorkDone !== "function"
-    ) {
-      return;
-    }
-
-    const now =
-      typeof performance !== "undefined" && performance.now
-        ? performance.now()
-        : Date.now();
-    const dueBySteps = this._stepsSincePace >= this._paceEveryNSteps;
-    const dueByTime = now - this._lastPaceTimeMs >= this._paceMinIntervalMs;
-
-    if (force || dueBySteps || dueByTime) {
-      this._stepsSincePace = 0;
-      this._lastPaceTimeMs = now;
-      try {
-        await this.device.queue.onSubmittedWorkDone();
-      } catch (_) {
-        // Ignore device-lost / transient failures; caller handles the overall error path.
-      }
-    }
+    return await maybePaceImpl(this, force);
   }
 
   async _createCellsRenderPipeline() {
@@ -758,321 +643,15 @@ export class WebGPURenderer {
   }
 
   async randomize(density = 0.15, initSize = null) {
-    const size = this.gridSize;
-    const region = Math.min(initSize || size, size);
-    const off = Math.floor((size - region) / 2);
-
-    // Convert density (0..1) to a u32 threshold for comparison.
-    const d = Math.max(0, Math.min(1, Number(density) || 0));
-    const threshold = Math.min(
-      0xffffffff,
-      Math.max(0, Math.floor(d * 4294967295)),
-    );
-
-    // Seed changes per reset for a new random field.
-    const seed =
-      ((typeof performance !== "undefined" && performance.now
-        ? Math.floor(performance.now() * 1000)
-        : Date.now()) ^
-        Math.floor(Math.random() * 0xffffffff)) >>>
-      0;
-
-    const initP = G3DL_LAYOUT.PARAMS.INIT.U32;
-    this._initParams[initP.GRID_SIZE] = size;
-    this._initParams[initP.REGION] = region;
-    this._initParams[initP.OFFSET] = off;
-    this._initParams[initP.THRESHOLD] = threshold >>> 0;
-    this._initParams[initP.SEED] = seed;
-    this._initParams[initP.PAD0] = 0;
-    this._initParams[initP.PAD1] = 0;
-    this._initParams[initP.PAD2] = 0;
-    this._queueWriteU32(this.initParamsBuffer, 0, this._initParams);
-
-    const wgX = Math.ceil(size / this.workgroupSize.x);
-    const wgY = Math.ceil(size / this.workgroupSize.y);
-    const wgZ = Math.ceil(size / this.workgroupSize.z);
-
-    // Prepare extraction parameters and counters up front. We keep init->extract->drawArgs
-    // inside a single command submission, using separate passes, to make ordering explicit
-    // across all backends and reduce per-submit overhead on mobile browsers.
-    const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
-    this._extractParams[extP.GRID_SIZE] = this.gridSize;
-    this._extractParams[extP.MAX_CELLS] = this.maxCells;
-    this._extractParams[extP.PAD0] = 0;
-    this._extractParams[extP.PAD1] = 0;
-    this._queueWriteU32(this.extractParamsBuffer, 0, this._extractParams);
-
-    // Reset counters before the extract pass runs.
-    this._queueWriteU32(this.atomicCounterBuffer, 0, this._u32_0);
-    // Force "changed" true so UI state (e.g., auto-stop) cannot latch onto a stale 0.
-    this._queueWriteU32(this.changeCounterBuffer, 0, this._u32_1);
-
-    // Randomization should update UI state immediately, so we sync stats here.
-    const syncStats = true;
-    const slot = await this._acquireReadbackSlot(syncStats);
-
-    const encoder = this.device.createCommandEncoder();
-
-    // 1) Initialize the grid
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.initPipeline);
-      pass.setBindGroup(0, this.initBindGroups[this.currentBuffer]);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-
-      pass.end();
-    }
-
-    // 2) Extract living cells for rendering
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.extractPipeline);
-      pass.setBindGroup(0, this.extractBindGroups[this.currentBuffer]);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-
-      pass.end();
-    }
-
-    // 3) Build indirect draw args (clamps instance count to maxCells)
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.drawArgsPipeline);
-      pass.setBindGroup(0, this.drawArgsBindGroup);
-      pass.dispatchWorkgroups(1, 1, 1);
-
-      pass.end();
-    }
-
-    if (slot >= 0) {
-      encoder.copyBufferToBuffer(
-        this.atomicCounterBuffer,
-        0,
-        this.statsStagingBuffers[slot],
-        0,
-        4,
-      );
-      encoder.copyBufferToBuffer(
-        this.changeCounterBuffer,
-        0,
-        this.changeStagingBuffers[slot],
-        0,
-        4,
-      );
-    }
-
-    this.device.queue.submit([encoder.finish()]);
-
-    // Randomization resets the simulation timeline.
-    this.population = 0;
-    this.generation = 0;
-    this.lastStepChanged = true;
-
-    // Stats correspond to generation 0.
-    if (slot >= 0) {
-      await this._startReadback(slot, 0);
-    }
+    return await randomizeGridImpl(this, density, initSize);
   }
 
   async step(options = {}) {
-    const syncStats = !!options.syncStats;
-    const pace = options.pace !== false;
-
-    const prev = this.currentBuffer;
-    const next = 1 - prev;
-    const wgX = Math.ceil(this.gridSize / this.workgroupSize.x);
-    const wgY = Math.ceil(this.gridSize / this.workgroupSize.y);
-    const wgZ = Math.ceil(this.gridSize / this.workgroupSize.z);
-
-    // Update per-step simulation parameters
-    const simP = G3DL_LAYOUT.PARAMS.SIM.U32;
-    this._computeParams[simP.GRID_SIZE] = this.gridSize;
-    this._computeParams[simP.SURVIVE_RULE] = this.surviveRule;
-    this._computeParams[simP.BIRTH_RULE] = this.birthRule;
-    this._computeParams[simP.TOROIDAL] = this.toroidal ? 1 : 0;
-    this._computeParams[simP.CHANGE_ENABLED] = this.enableChangeDetection ? 1 : 0;
-    this._computeParams[simP.PAD0] = 0;
-    this._computeParams[simP.PAD1] = 0;
-    this._computeParams[simP.PAD2] = 0;
-    this._queueWriteU32(this.computeParamsBuffer, 0, this._computeParams);
-    // Update per-step extraction parameters (maxCells affects draw clamping)
-    const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
-    this._extractParams[extP.GRID_SIZE] = this.gridSize;
-    this._extractParams[extP.MAX_CELLS] = this.maxCells;
-    this._extractParams[extP.PAD0] = 0;
-    this._extractParams[extP.PAD1] = 0;
-    this._queueWriteU32(this.extractParamsBuffer, 0, this._extractParams);
-
-    // Reset counters used by extraction + change detection
-    this._queueWriteU32(this.atomicCounterBuffer, 0, this._u32_0);
-    if (this.enableChangeDetection) {
-      this._queueWriteU32(this.changeCounterBuffer, 0, this._u32_0);
-    } else {
-      // Keep "changed" non-zero so play mode never auto-stops due to stability.
-      this._queueWriteU32(this.changeCounterBuffer, 0, this._u32_1);
-    }
-
-    // Schedule a readback only when needed (or if sync requested)
-    const doReadback = this._shouldReadbackStats(syncStats);
-    let slot = -1;
-    if (doReadback) {
-      slot = await this._acquireReadbackSlot(syncStats);
-    }
-
-    const encoder = this.device.createCommandEncoder();
-
-    // NOTE: We intentionally split simulation, extraction, and indirect-args generation into
-    // separate compute passes. This makes the data dependencies explicit and relies only on
-    // WebGPU's pass-to-pass visibility guarantees (portable across backends and drivers).
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.computePipeline);
-      pass.setBindGroup(0, this.computeBindGroups[prev]);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-
-      pass.end();
-    }
-
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.extractPipeline);
-      pass.setBindGroup(0, this.extractBindGroups[next]);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-
-      pass.end();
-    }
-
-    // Build indirect draw args (clamps instance count to maxCells)
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.drawArgsPipeline);
-      pass.setBindGroup(0, this.drawArgsBindGroup);
-      pass.dispatchWorkgroups(1, 1, 1);
-
-      pass.end();
-    }
-
-    const stepGeneration = this.generation + 1;
-
-    if (slot >= 0) {
-      encoder.copyBufferToBuffer(
-        this.atomicCounterBuffer,
-        0,
-        this.statsStagingBuffers[slot],
-        0,
-        4,
-      );
-      encoder.copyBufferToBuffer(
-        this.changeCounterBuffer,
-        0,
-        this.changeStagingBuffers[slot],
-        0,
-        4,
-      );
-    }
-
-    this.device.queue.submit([encoder.finish()]);
-
-    // Optional pacing to keep the GPU submission queue bounded.
-    // Without pacing, very small UI delays can enqueue many steps ahead of the GPU,
-    // increasing latency and risking device loss on memory-constrained devices.
-    if (pace) {
-      this._stepsSincePace++;
-      await this.maybePace(false);
-    }
-
-    // Swap buffers and advance generation
-    this.currentBuffer = next;
-    this.generation = stepGeneration;
-
-    if (slot >= 0) {
-      const p = this._startReadback(slot, stepGeneration);
-      if (syncStats) {
-        await p;
-        return this.lastStepChanged;
-      }
-    }
-
-    // In async mode, return the most recent known value (may lag)
-    return this.lastStepChanged;
+    return await stepSimulationImpl(this, options);
   }
 
   async extractLivingCells(options = {}) {
-    // Used after randomization / initialization. Default to syncing so UI updates immediately.
-    const syncStats = options.syncStats !== false;
-    const wgX = Math.ceil(this.gridSize / this.workgroupSize.x);
-    const wgY = Math.ceil(this.gridSize / this.workgroupSize.y);
-    const wgZ = Math.ceil(this.gridSize / this.workgroupSize.z);
-
-    const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
-    this._extractParams[extP.GRID_SIZE] = this.gridSize;
-    this._extractParams[extP.MAX_CELLS] = this.maxCells;
-    this._extractParams[extP.PAD0] = 0;
-    this._extractParams[extP.PAD1] = 0;
-    this._queueWriteU32(this.extractParamsBuffer, 0, this._extractParams);
-
-    // Reset population counter. Force 'changed' true for the UI/controls.
-    this._queueWriteU32(this.atomicCounterBuffer, 0, this._u32_0);
-    // Force "changed" true for the UI/controls.
-    this._queueWriteU32(this.changeCounterBuffer, 0, this._u32_1);
-
-    const slot = await this._acquireReadbackSlot(syncStats);
-
-    const encoder = this.device.createCommandEncoder();
-
-    // Split into separate passes to make the "extract -> counter -> indirect args" dependency explicit.
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.extractPipeline);
-      pass.setBindGroup(0, this.extractBindGroups[this.currentBuffer]);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-
-      pass.end();
-    }
-
-    {
-      const pass = encoder.beginComputePass();
-
-      pass.setPipeline(this.drawArgsPipeline);
-      pass.setBindGroup(0, this.drawArgsBindGroup);
-      pass.dispatchWorkgroups(1, 1, 1);
-
-      pass.end();
-    }
-
-    if (slot >= 0) {
-      encoder.copyBufferToBuffer(
-        this.atomicCounterBuffer,
-        0,
-        this.statsStagingBuffers[slot],
-        0,
-        4,
-      );
-      encoder.copyBufferToBuffer(
-        this.changeCounterBuffer,
-        0,
-        this.changeStagingBuffers[slot],
-        0,
-        4,
-      );
-    }
-
-    this.device.queue.submit([encoder.finish()]);
-
-    // Extract does not advance generation; stats correspond to the current generation number.
-    const gen = this.generation;
-    if (slot >= 0) {
-      const p = this._startReadback(slot, gen);
-      if (syncStats) {
-        await p;
-      }
-    }
+    return await extractLivingCellsImpl(this, options);
   }
   setSurviveRule(c) {
     this.surviveRule = 0;
@@ -1120,64 +699,7 @@ export class WebGPURenderer {
   }
 
   render() {
-    // Update frame uniforms (camera + background) once per frame.
-    updateFrameUniformsImpl(this);
-
-    const encoder = this.device.createCommandEncoder();
-    const textureView = this.context.getCurrentTexture().createView();
-
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: textureView,
-          loadOp: "clear",
-          clearValue: {
-            r: this.bgColorBottom[0],
-            g: this.bgColorBottom[1],
-            b: this.bgColorBottom[2],
-            a: 1.0,
-          },
-          storeOp: "store",
-        },
-      ],
-      depthStencilAttachment: {
-        view: this.depthTextureView,
-        depthLoadOp: "clear",
-        depthClearValue: 1.0,
-        depthStoreOp: "store",
-      },
-    });
-
-    pass.setPipeline(this.bgPipeline);
-    pass.setBindGroup(0, this.bgBindGroup);
-    pass.draw(3);
-
-    // Camera uniforms were already updated at the start of render().
-
-    // Optional subtle projection of the outer grid box (drawn blended over the background).
-    if (
-      this.gridProjectionEnabled > 0.5 &&
-      this.gridProjPipeline &&
-      this.gridProjBindGroup &&
-      this.gridProjInstanceBuffer
-    ) {
-      if (this.gridProjInstanceCount > 0) {
-        pass.setPipeline(this.gridProjPipeline);
-        pass.setBindGroup(0, this.gridProjBindGroup);
-        pass.setVertexBuffer(0, this.gridProjInstanceBuffer);
-        pass.draw(6, this.gridProjInstanceCount);
-      }
-    }
-
-    // Cell pass (GPU-driven instance count)
-    pass.setPipeline(this.renderPipeline);
-    pass.setBindGroup(0, this.cellBindGroup);
-    pass.setVertexBuffer(0, this.cubeVertexBuffer);
-    pass.setIndexBuffer(this.cubeIndexBuffer, "uint16");
-    pass.drawIndexedIndirect(this.indirectArgsBuffer, 0);
-
-    pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    renderFrameImpl(this);
   }
 
   resize(options = {}) {

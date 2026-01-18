@@ -45,6 +45,8 @@ GPU contracts:
 
 GPU engine:
 - `src/gpu/renderer.js` - WebGPU simulation + rendering engine (public renderer API; orchestrates submodules)
+- `src/gpu/renderer/*` - Renderer implementation split by concern (lifecycle, step encoding, render encoding, pacing, optional AABB queries)
+- `src/gpu/rendererApi.js` - Runtime contract check to detect renderer API mismatches during refactors
 - `src/gpu/shaders.js` - WGSL shader sources assembled from the data layout contract
 - `src/gpu/pipelines/*` - Compute and render pipeline creation (async/lazy when possible)
 - `src/gpu/resources/*` - GPU buffer lifecycle (grid/geometry/uniforms/bind groups, per-frame uniform updates)
@@ -117,7 +119,6 @@ When debug checks are enabled (`?debug=1` / `?debug=true`), the write helpers ad
 - 4-byte alignment requirements for `writeBuffer()` offsets and sizes
 - that each write stays within the expected GPUBuffer size (buffers are registered via `this._createBuffer()`)
 
-This catches layout/offset mistakes early, before they manifest as platform-specific rendering or simulation errors.
 This catches layout/offset mistakes early, before they manifest as platform-specific rendering or simulation errors.
 
 ## Code structure (ES modules)
