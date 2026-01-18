@@ -59,6 +59,14 @@ export class LoopController {
 
     this.isDestroyed = false;
 
+    // Visibility/backgrounding suspension.
+    // When suspended, the loop stops scheduling play ticks and does not drive rendering.
+    // This reduces battery usage and lowers the risk of WebGPU device loss on mobile browsers.
+    this.isSuspended = false;
+    // If invalidations occur while suspended, we remember that a render is needed so
+    // the first visible frame after resuming is up-to-date.
+    this._renderDirtyWhileSuspended = false;
+
     // Simulation step serialization.
     this.stepQueue = Promise.resolve();
 
@@ -104,6 +112,17 @@ export class LoopController {
     if (this.isDestroyed || !this.renderer) return;
     this.renderRequested = true;
 
+    if (this.isSuspended) {
+      // Do not schedule any callbacks while backgrounded.
+      // Keep a single "dirty" bit so we can render promptly on resume.
+      this._renderDirtyWhileSuspended = true;
+      if (immediate && this.renderTimerId) {
+        clearTimeout(this.renderTimerId);
+        this.renderTimerId = 0;
+      }
+      return;
+    }
+
     if (immediate && this.renderTimerId) {
       clearTimeout(this.renderTimerId);
       this.renderTimerId = 0;
@@ -113,6 +132,58 @@ export class LoopController {
     if (this.renderTimerId && !immediate) return;
 
     this.renderRafId = requestAnimationFrame(this._onFrameBound);
+  }
+
+  /**
+   * Suspend or resume the loop controller.
+   *
+   * Suspension is used for tab backgrounding / app switching:
+   * - Stop play ticks (no further simulation steps are queued).
+   * - Stop animation-driven rendering (lantern/screen show do not run in background).
+   *
+   * @param {boolean} suspended
+   */
+  setSuspended(suspended) {
+    if (this.isDestroyed) return;
+    const next = !!suspended;
+    if (next === this.isSuspended) return;
+
+    this.isSuspended = next;
+
+    if (this.isSuspended) {
+      // Cancel any scheduled renders immediately.
+      if (this.renderTimerId) {
+        clearTimeout(this.renderTimerId);
+        this.renderTimerId = 0;
+      }
+      if (this.renderRafId) {
+        cancelAnimationFrame(this.renderRafId);
+        this.renderRafId = 0;
+      }
+
+      // Stop scheduling play ticks while backgrounded.
+      //
+      // Important: we intentionally DO NOT change this.isPlaying here.
+      // Backgrounding is treated as a temporary "freeze" rather than a user-initiated pause.
+      // This preserves Screen show pass state so it can resume exactly where it left off.
+      if (this.playTimer) {
+        clearTimeout(this.playTimer);
+        this.playTimer = null;
+      }
+      return;
+    }
+
+    // On resume, render promptly if anything changed while we were suspended.
+    if (this._renderDirtyWhileSuspended) {
+      this._renderDirtyWhileSuspended = false;
+      this.requestRender(true);
+    }
+
+    // If we were playing before suspension, resume ticking immediately.
+    if (this.isPlaying && !this.playTickInProgress && !this.playTimer) {
+      const sessionId = this.playSessionId;
+      this.playTimer = setTimeout(() => this._playTick(sessionId), 0);
+    }
   }
 
   /**
@@ -183,6 +254,7 @@ export class LoopController {
   rescheduleNextTick() {
     if (!this.isPlaying) return;
     if (this.playTickInProgress) return;
+    if (this.isSuspended) return;
 
     if (this.playTimer) {
       clearTimeout(this.playTimer);
@@ -197,6 +269,7 @@ export class LoopController {
    */
   startPlaying() {
     if (this.isDestroyed || !this.renderer) return;
+    if (this.isSuspended) return;
     if (this.isPlaying) return;
 
     // Any previous play session is obsolete.
@@ -236,6 +309,7 @@ export class LoopController {
    */
   queueStep(syncStats = true) {
     if (this.isDestroyed || !this.renderer) return Promise.resolve(false);
+    if (this.isSuspended) return Promise.resolve(false);
     const p = this.stepQueue.then(async () => {
       const changed = await this.renderer.step({ syncStats, pace: true });
 
@@ -283,6 +357,7 @@ export class LoopController {
    */
   async _playTick(sessionId) {
     if (this.isDestroyed || !this.renderer) return;
+    if (this.isSuspended) return;
     if (!this.isPlaying || sessionId !== this.playSessionId) return;
     if (this.playTickInProgress) return; // extra safety against re-entry
 
@@ -337,6 +412,9 @@ export class LoopController {
     const elapsed = performance.now() - t0;
     const delay = Math.max(0, this.hooks.getSpeedDelayMs() - elapsed);
 
+    // If the page backgrounded during this tick, do not schedule the next one.
+    if (this.isSuspended) return;
+
     this.playTimer = setTimeout(() => this._playTick(sessionId), delay);
   }
 
@@ -347,6 +425,7 @@ export class LoopController {
   _onFrame(ts) {
     this.renderRafId = 0;
     if (!this.renderer) return;
+    if (this.isSuspended) return;
 
     // Treat resize events as a rendering trigger; we only reconfigure the swapchain when we are
     // about to render, and we cap the cadence during continuous resizing to avoid flicker.

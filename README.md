@@ -17,6 +17,7 @@ For a bit of story behind the project, you can check [this LinkedIn post](https:
 - **Real-time stats**: Population and generation counters
 - **Auto-stop when stable**: Optionally stop playback when the automaton reaches a static state
 - **Device-aware grid limits**: UI clamps grid size to conservative limits based on WebGPU buffer limits, memory budget heuristics, and an interactive rendering cap.
+- **Auto-suspend when not visible**: Stop simulation and rendering when the web app is hidden, to reduce resource and power usage
 
 ## Requirements
 

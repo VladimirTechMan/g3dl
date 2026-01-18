@@ -269,9 +269,23 @@ window.addEventListener(
   "pagehide",
   (e) => {
     // If the page is being placed into the back/forward cache (bfcache), avoid tearing
-    // down; the runtime will resume with listeners intact when restored.
-    if (e && e.persisted) return;
+    // down but suspend GPU work. The runtime will resume with listeners intact when restored.
+    if (e && e.persisted) {
+      suspendForBackground("pagehide-bfcache");
+      return;
+    }
     destroyApp("pagehide");
+  },
+  { passive: true, signal: APP_SIGNAL },
+);
+
+// Resume from bfcache restoration.
+window.addEventListener(
+  "pageshow",
+  (e) => {
+    if (e && e.persisted) {
+      resumeFromBackground("pageshow-bfcache");
+    }
   },
   { passive: true, signal: APP_SIGNAL },
 );
@@ -281,6 +295,145 @@ window.addEventListener("beforeunload", () => destroyApp("beforeunload"), {
 
 // Central mutable state (simulation + settings + screenshow).
 const state = createAppState();
+
+// ------------------------------------------------------------
+// Visibility/backgrounding policy
+// ------------------------------------------------------------
+
+// When the document is hidden (tab backgrounded, app switched, screen locked),
+// we proactively suspend GPU work to reduce battery usage and lower the risk of
+// WebGPU device loss on mobile browsers.
+//
+// Policy summary:
+// - On hide/freeze: pause play mode and stop animation-driven rendering.
+// - On show/resume: resume to the prior play state (auto-resume) and render immediately.
+// - Lantern timebase is frozen while hidden so it doesn't "jump" on resume.
+let _visSuspended = false;
+let _wasPlayingBeforeVisSuspend = false;
+
+/**
+ * Suspend simulation and rendering due to backgrounding.
+ *
+ * This function is idempotent.
+ *
+ * @param {string} reason
+ */
+function suspendForBackground(reason = "") {
+  if (_visSuspended) return;
+  _visSuspended = true;
+
+  // Snapshot play state before stopping it.
+  _wasPlayingBeforeVisSuspend = !!(loop && loop.isPlaying);
+
+  try {
+    // Freeze the visualization timebase so lantern flicker does not jump when returning.
+    if (renderer && typeof renderer.pauseTimebase === "function") renderer.pauseTimebase();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    // Cancel active gestures immediately to avoid stuck pointer states after backgrounding.
+    orbitControls?.cancelInteraction?.();
+  } catch (_) {
+    // ignore
+  }
+
+  // Screen show uses timers for fade/teleport sequencing. Clear them explicitly so
+  // no background timers keep firing while hidden. Unlike a user-initiated pause,
+  // we preserve the current pass so Screen show can resume exactly where it stopped.
+  try {
+    screenShow?.pauseTimebase?.();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    // Stop play ticks and animation-driven rendering.
+    if (loop && typeof loop.setSuspended === "function") loop.setSuspended(true);
+    else loop?.stopPlaying?.();
+  } catch (_) {
+    // ignore
+  }
+
+  void reason;
+}
+
+/**
+ * Resume from a previously suspended background state.
+ *
+ * This function is idempotent.
+ *
+ * @param {string} reason
+ */
+function resumeFromBackground(reason = "") {
+  if (!_visSuspended) return;
+  _visSuspended = false;
+
+  try {
+    if (renderer && typeof renderer.resumeTimebase === "function") renderer.resumeTimebase();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    screenShow?.resumeTimebase?.();
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    if (loop && typeof loop.setSuspended === "function") loop.setSuspended(false);
+  } catch (_) {
+    // ignore
+  }
+
+  // Ensure the canvas is refreshed promptly after returning to the foreground.
+  requestRender(true);
+
+  // Auto-resume if the user was playing before backgrounding.
+  const shouldResumePlay = _wasPlayingBeforeVisSuspend;
+  _wasPlayingBeforeVisSuspend = false;
+
+  if (shouldResumePlay && loop && !loop.isPlaying) {
+    loop.startPlaying();
+  }
+
+  void reason;
+}
+
+/**
+ * Install lifecycle listeners that drive the backgrounding policy.
+ */
+function installVisibilityPolicy() {
+  // Page Visibility API (broad support).
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      if (document.hidden) suspendForBackground("visibilitychange");
+      else resumeFromBackground("visibilitychange");
+    },
+    { signal: APP_SIGNAL },
+  );
+
+  // Page Lifecycle API (best-effort; supported in Chromium-based browsers).
+  // These events can fire without a visibilitychange in some cases.
+  document.addEventListener(
+    "freeze",
+    () => suspendForBackground("freeze"),
+    { signal: APP_SIGNAL },
+  );
+  document.addEventListener(
+    "resume",
+    () => resumeFromBackground("resume"),
+    { signal: APP_SIGNAL },
+  );
+
+  // If the page is already hidden at install time (rare), suspend immediately.
+  if (document.hidden) suspendForBackground("initial-hidden");
+}
+
+installVisibilityPolicy();
 
 // HUD stats rendering is simple and widely used (including from loop hooks).
 // Centralize it in a tiny controller.

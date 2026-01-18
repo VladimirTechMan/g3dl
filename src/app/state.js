@@ -72,6 +72,14 @@ function createScreenShowState() {
     pass: null,
     pendingStart: false,
     pendingStartTimer: null,
+    // When pendingStartTimer is scheduled, this records the (performance.now()) timestamp
+    // when the fade-out window completes and the teleport should occur.
+    pendingStartDueMs: 0,
+    // Timebase suspension (tab backgrounding): we freeze Screen show progress by shifting
+    // pass timestamps forward by the hidden duration. These fields support that policy.
+    timebasePaused: false,
+    timebasePauseStartMs: 0,
+    pendingStartRemainingMs: 0,
     pendingStartToken: 0,
     focusCenter: [0, 0, 0],
     focusRadius: 1,

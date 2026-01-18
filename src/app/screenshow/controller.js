@@ -66,6 +66,105 @@ export class ScreenShowController {
   }
 
   /**
+   * Pause Screen show timebase due to backgrounding.
+   *
+   * Screen show uses rAF timestamps (DOMHighResTimeStamp) to advance passes. When the
+   * page is hidden, the next visible frame's timestamp can jump forward by seconds or
+   * minutes, which would otherwise fast-forward the pass and immediately trigger a new
+   * pass (dim -> teleport -> fade).
+   *
+   * The loop controller already stops calling update() while suspended; this method
+   * ensures that when we resume we continue the current pass exactly where it left off.
+   */
+  pauseTimebase() {
+    const ss = this.state.screenshow.state;
+    if (ss.timebasePaused) return;
+    ss.timebasePaused = true;
+    const nowMs = (performance && performance.now ? performance.now() : Date.now());
+    ss.timebasePauseStartMs = nowMs;
+
+    // If we are mid "fade-out then teleport" sequence, cancel the timer and remember
+    // the remaining time so we can resume without restarting the sequence.
+    if (ss.pendingStartTimer) {
+      try {
+        clearTimeout(ss.pendingStartTimer);
+      } catch (_) {
+        // ignore
+      }
+      ss.pendingStartTimer = null;
+      const remaining = Math.max(0, (ss.pendingStartDueMs || 0) - nowMs);
+      ss.pendingStartRemainingMs = remaining;
+    }
+  }
+
+  /**
+   * Resume Screen show timebase after backgrounding.
+   *
+   * Shifts internal timestamps forward by the hidden duration so progress does not
+   * jump on the first visible rAF.
+   */
+  resumeTimebase() {
+    const ss = this.state.screenshow.state;
+    if (!ss.timebasePaused) return;
+    ss.timebasePaused = false;
+
+    const nowMs = (performance && performance.now ? performance.now() : Date.now());
+    const dt = Math.max(0, nowMs - (ss.timebasePauseStartMs || nowMs));
+    ss.timebasePauseStartMs = 0;
+
+    if (dt > 0) {
+      if (ss.pass) {
+        ss.pass.startMs += dt;
+        if (ss.pass.fadeEndMs) ss.pass.fadeEndMs += dt;
+      }
+
+      // Keep the AABB refresh interval consistent (do not request immediately on resume).
+      if (ss.lastAabbRequestMs) ss.lastAabbRequestMs += dt;
+
+      // Preserve camera smoothing continuity.
+      if (ss.lastSmoothMs) ss.lastSmoothMs += dt;
+
+      // If a teleport was pending, keep its due timestamp consistent.
+      if (ss.pendingStartDueMs) ss.pendingStartDueMs += dt;
+    }
+
+    // If a "startFromRun" teleport was pending when we backgrounded, restore the timer.
+    if (
+      ss.pendingStart &&
+      !ss.pendingStartTimer &&
+      ss.pendingStartRemainingMs >= 0 &&
+      this.state.screenshow.enabled &&
+      this.state.sim.isPlaying
+    ) {
+      const remaining = Math.max(0, ss.pendingStartRemainingMs);
+      ss.pendingStartRemainingMs = 0;
+      ss.pendingStartDueMs = nowMs + remaining;
+      const token = ss.pendingStartToken;
+
+      ss.pendingStartTimer = setTimeout(() => {
+        ss.pendingStartTimer = null;
+
+        // If state changed (paused/disabled) during the suspension, do nothing.
+        if (!this.state.screenshow.enabled || !this.renderer || !this.state.sim.isPlaying) {
+          ss.pendingStart = false;
+          this._undimCanvas();
+          return;
+        }
+        if (token !== ss.pendingStartToken) {
+          // A newer Run took precedence.
+          return;
+        }
+
+        // Teleport to a new pass while dimmed, then fade back in.
+        this.startPass(true);
+        ss.pendingStart = false;
+        this._undimCanvas();
+        this.requestRender(true);
+      }, remaining);
+    }
+  }
+
+  /**
    * OrbitControls is created after renderer init; attach it when available so Screen show can cancel active gestures
    * when navigation becomes locked.
    *
@@ -155,6 +254,8 @@ export class ScreenShowController {
         ss.pendingStartTimer = null;
       }
       ss.pendingStart = false;
+      ss.pendingStartDueMs = 0;
+      ss.pendingStartRemainingMs = 0;
       // Restart with a fresh pass on the next Run.
       ss.pass = null;
     }
@@ -177,6 +278,11 @@ export class ScreenShowController {
     }
     ss.pendingStart = true;
     const token = ++ss.pendingStartToken;
+
+    // Track due time so we can suspend/resume the timer during backgrounding.
+    const nowMs = (performance && performance.now ? performance.now() : Date.now());
+    ss.pendingStartDueMs = nowMs + SCREENSHOW_FADE_MS;
+    ss.pendingStartRemainingMs = 0;
 
     // Ensure we don't reuse a stale pass.
     ss.pass = null;
@@ -214,12 +320,16 @@ export class ScreenShowController {
    */
   stop(alsoClearOverride = false) {
     const ss = this.state.screenshow.state;
+    ss.timebasePaused = false;
+    ss.timebasePauseStartMs = 0;
     ss.pass = null;
     if (ss.pendingStartTimer) {
       clearTimeout(ss.pendingStartTimer);
       ss.pendingStartTimer = null;
     }
     ss.pendingStart = false;
+    ss.pendingStartDueMs = 0;
+    ss.pendingStartRemainingMs = 0;
     if (alsoClearOverride) {
       // Leave the view where it is when Screen show is disabled.
       this.renderer.commitCameraOverrideToUser();

@@ -268,11 +268,57 @@ export class WebGPURenderer {
         ? performance.now()
         : Date.now();
 
+    // Optional pause marker for timebase freezing.
+    // When the page is backgrounded we suspend rendering; without adjusting the
+    // timebase, the next visible frame would "jump" forward by the hidden duration.
+    // This marker is used by pauseTimebase()/resumeTimebase() to exclude hidden
+    // time from the lantern animation.
+    this._timePausedAtMs = null;
+
     // Set initial camera rotation.
     // Camera scratch must exist before any rotation operations (no per-frame allocations).
     ensureCameraScratch(this);
     setQuatFromEuler(this, 0.7, -0.5);
     syncCameraMatrix(this);
+  }
+
+  // ----------------------------
+  // Timebase control (visibility/backgrounding)
+  // ----------------------------
+
+  /**
+   * Freeze the renderer timebase.
+   *
+   * This is used when the document becomes hidden (tab backgrounding / app switching).
+   * Simulation correctness is unaffected (time is only used for visualization effects).
+   */
+  pauseTimebase() {
+    if (this._timePausedAtMs != null) return;
+    const nowMs =
+      typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now();
+    this._timePausedAtMs = nowMs;
+  }
+
+  /**
+   * Resume a previously frozen timebase.
+   *
+   * The internal start-time is shifted forward by the hidden duration so
+   * elapsed time remains continuous for shaders.
+   */
+  resumeTimebase() {
+    if (this._timePausedAtMs == null) return;
+    const nowMs =
+      typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now();
+    const pausedAt = this._timePausedAtMs;
+    this._timePausedAtMs = null;
+    const delta = nowMs - pausedAt;
+    if (Number.isFinite(delta) && delta > 0) {
+      this._startTimeMs += delta;
+    }
   }
 
   // ----------------------------
