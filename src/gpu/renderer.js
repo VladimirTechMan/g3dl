@@ -1,4 +1,5 @@
 import { G3DL_LAYOUT } from "./dataLayout.js";
+import { MAX_PACKED_GRID_SIZE } from "./constants.js";
 import {
   createSimulationPipeline as createSimulationPipelineImpl,
   _createExtractPipeline as createExtractPipelineImpl,
@@ -15,10 +16,7 @@ import {
   _createCubeGeometry as createCubeGeometryImpl,
   _rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
 } from "./resources/geometry.js";
-import {
-  _createGridBuffers as createGridBuffersImpl,
-  _destroyGridResources as destroyGridResourcesImpl,
-} from "./resources/grid.js";
+import { _createGridBuffers as createGridBuffersImpl } from "./resources/grid.js";
 import { _createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
 import {
   _shouldReadbackStats as shouldReadbackStatsImpl,
@@ -31,6 +29,8 @@ import {
   updateFrameUniforms as updateFrameUniformsImpl,
 } from "./resources/frameUniforms.js";
 import { BufferManager } from "./util/bufferManager.js";
+import { hexToRgb01 } from "./util/color.js";
+import { initRenderer, resizeRenderer, destroyRenderer } from "./renderer/lifecycle.js";
 import {
   ensureCameraScratch,
   syncCameraMatrix,
@@ -47,38 +47,8 @@ import {
   commitCameraOverrideToUser as commitCameraOverrideToUserImpl,
 } from "./cameraControls.js";
 
-import { debugWarn, error, warn } from "../util/log.js";
+import { error, warn } from "../util/log.js";
 import { LOG_MSG } from "../util/messages.js";
-
-
-// Packed cell coordinate format: 10 bits per axis.
-//
-// The GPU compaction path stores live cell coordinates in a single u32:
-//   x (10 bits) | y (10 bits) << 10 | z (10 bits) << 20
-// See src/gpu/shaders.js for the WGSL packing/unpacking logic.
-//
-// This supports coordinates 0..1023, so gridSize must be <= 1024.
-const PACKED_CELL_AXIS_BITS = 10;
-const MAX_PACKED_GRID_SIZE = 1 << PACKED_CELL_AXIS_BITS;
-
-/**
- * Convert a CSS hex color to 0..1 RGB floats.
- *
- * The UI constrains values to "#rrggbb" via <input type="color"> and URL validation.
- * This helper exists primarily to avoid duplicated parsing logic.
- *
- * @param {string} hex - "#rrggbb" (recommended) or "rrggbb".
- * @returns {[number, number, number]}
- */
-function hexToRgb01(hex) {
-  const t = String(hex).trim();
-  const s = t.startsWith("#") ? t.slice(1) : t;
-  return [
-    parseInt(s.slice(0, 2), 16) / 255,
-    parseInt(s.slice(2, 4), 16) / 255,
-    parseInt(s.slice(4, 6), 16) / 255,
-  ];
-}
 
 
 /**
@@ -359,156 +329,7 @@ export class WebGPURenderer {
     this._queueWriteU32(this.aabbBuffer, 0, a);
   }
   async init() {
-    if (!navigator.gpu) throw new Error("WebGPU not supported");
-
-    let adapter = null;
-    for (const delay of [0, 100, 300, 500]) {
-      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-      adapter = await navigator.gpu.requestAdapter();
-      if (adapter) break;
-    }
-    if (!adapter) throw new Error("No GPU adapter found");
-
-    // Capability negotiation:
-    // - Prefer requesting the full adapter limits for large storage buffers when available.
-    // - Fall back to default limits if the request is rejected by the implementation.
-    const limits = adapter.limits;
-    const WANT = 134217728; // 128 MiB is a useful threshold for large 3D grids.
-    const requiredLimits = {};
-    if (typeof limits.maxStorageBufferBindingSize === "number" && limits.maxStorageBufferBindingSize > WANT) {
-      requiredLimits.maxStorageBufferBindingSize = limits.maxStorageBufferBindingSize;
-    }
-    if (typeof limits.maxBufferSize === "number" && limits.maxBufferSize > WANT) {
-      requiredLimits.maxBufferSize = limits.maxBufferSize;
-    }
-
-    const deviceDesc = Object.keys(requiredLimits).length ? { requiredLimits } : {};
-    try {
-      this.device = await adapter.requestDevice(deviceDesc);
-    } catch (e) {
-      debugWarn("requestDevice with requiredLimits failed; retrying with defaults", e);
-      this.device = await adapter.requestDevice();
-    }
-
-    // BufferManager must be attached to the newly created device before any resource allocation.
-    // (We create several buffers immediately after this during init.)
-    this._buffers.setDevice(this.device);
-
-    this._caps.pipelineAsync =
-      typeof this.device.createComputePipelineAsync === "function" &&
-      typeof this.device.createRenderPipelineAsync === "function";
-
-    // Device loss can happen on mobile (backgrounding, memory pressure, driver reset).
-    // Surface this to the app so it can stop the simulation and prompt the user.
-    this.device.lost.then((info) => {
-      this.deviceLost = true;
-      error(LOG_MSG.WEBGPU_DEVICE_LOST, info);
-      if (typeof this.onDeviceLost === "function") {
-        try {
-          this.onDeviceLost(info);
-        } catch (e) {
-          debugWarn("onDeviceLost callback failed:", e);
-        }
-      }
-    });
-
-    this.maxBufferSize = this.device.limits.maxStorageBufferBindingSize;
-
-    // Configure the AABB reduction kernel size based on device limits.
-    this.aabbWorkgroupSize = this._chooseAabbWorkgroupSize();
-
-    // Derive a safe maximum grid size from per-buffer limits (per-binding) AND a conservative total-memory heuristic.
-    // One cell = 4 bytes (u32). Each grid buffer must fit within maxStorageBufferBindingSize (and maxBufferSize).
-    const perBufferLimit = Math.min(
-      this.device.limits.maxStorageBufferBindingSize,
-      this.device.limits.maxBufferSize ??
-        this.device.limits.maxStorageBufferBindingSize,
-    );
-    const maxCellsPerBuffer = Math.floor(perBufferLimit / 4);
-    const maxGridFromLimits = Math.floor(Math.cbrt(maxCellsPerBuffer));
-    let maxGrid = Math.max(4, Math.min(256, maxGridFromLimits));
-
-    // Additional hard safety cap from the packed live-cell coordinate format.
-    // (Today we clamp to <= 256 anyway, but we keep this explicit so that future
-    // grid-size expansions cannot silently break rendering.)
-    maxGrid = Math.min(maxGrid, MAX_PACKED_GRID_SIZE);
-
-
-    // Conservative, best-effort cap based on expected total GPU memory pressure.
-    // WebGPU does not expose total VRAM; this is a heuristic to reduce device-loss on mobile.
-    const isCoarsePointer =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(pointer: coarse)").matches;
-    this._caps.isCoarsePointer = !!isCoarsePointer;
-
-    // Mobile-friendly queue pacing.
-    // Coarse-pointer devices are typically phones/tablets where over-submitting work can cause
-    // latency spikes or even device loss due to memory pressure.
-    if (this._caps.isCoarsePointer) {
-      this._paceEveryNSteps = 1;
-      this._paceMinIntervalMs = 33;
-    }
-    const budgetBytes = isCoarsePointer ? 128 * 1024 * 1024 : 256 * 1024 * 1024;
-    const safetyOverhead = 16 * 1024 * 1024; // textures, pipelines, backbuffers, driver overhead, etc.
-    const budgetUsable = Math.max(
-      32 * 1024 * 1024,
-      budgetBytes - safetyOverhead,
-    );
-
-    let maxGridByBudget = 4;
-
-    // Additional cap driven by expected interactive rendering limits.
-    // Rendering worst-case can require up to gridSize^3 cube instances; this cap prevents pathological UI stalls.
-    const maxGridByRender = isCoarsePointer ? 128 : 160;
-    maxGrid = Math.max(4, Math.min(maxGrid, maxGridByRender));
-
-    // Estimate total GPU memory pressure from persistent buffers.
-    // We allocate 2 full grid buffers (ping-pong) plus a full living-cell list buffer.
-    // Each cell entry is a u32 (4 bytes).
-    for (let n = 4; n <= maxGrid; n++) {
-      const total = n ** 3;
-      const bytes = 3 * total * 4;
-      if (bytes <= budgetUsable) {
-        maxGridByBudget = n;
-      } else {
-        break; // bytes increases monotonically with n
-      }
-    }
-
-    this.maxSupportedGridSize = Math.max(4, Math.min(maxGrid, maxGridByBudget));
-
-    this.context = this.canvas.getContext("webgpu");
-    if (!this.context) throw new Error("Failed to get WebGPU context");
-
-    this.format = navigator.gpu.getPreferredCanvasFormat();
-    this._canvasConfig = {
-      device: this.device,
-      format: this.format,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-      alphaMode: "premultiplied",
-    };
-
-    // Configure the canvas and create the depth buffer using the current devicePixelRatio.
-    // We re-run this logic on resize/orientation changes to keep the swapchain correct on mobile browsers.
-    this.resize({ force: true });
-
-    // Kick off pipeline compilation early, while we allocate buffers.
-    const pipelinesPromise = this._ensureEssentialPipelines();
-    this._createCubeGeometry();
-    this._createUniformBuffer();
-    this._createGridBuffers();
-    this._createDrawArgsResources();
-    // Wait for essential pipelines to be ready before building bind groups.
-    await pipelinesPromise;
-    this._rebuildBindGroups();
-
-    if (G3DL_LAYOUT.DEBUG) {
-      // Validate JS<->WGSL buffer contracts early (debug-only).
-      G3DL_LAYOUT.assertRenderer(this);
-    }
-
-    return true;
+    return await initRenderer(this);
   }
 
   /**
@@ -1360,59 +1181,7 @@ export class WebGPURenderer {
   }
 
   resize(options = {}) {
-    const force = !!options.force;
-    const dpr =
-      typeof window !== "undefined" && window.devicePixelRatio
-        ? window.devicePixelRatio
-        : 1;
-
-    // clientWidth/clientHeight are CSS pixels. Multiply by devicePixelRatio for the backing store size.
-    const cssW = this.canvas.clientWidth || this.canvas.width || 1;
-    const cssH = this.canvas.clientHeight || this.canvas.height || 1;
-    const w = Math.max(1, Math.floor(cssW * dpr));
-    const h = Math.max(1, Math.floor(cssH * dpr));
-
-    if (
-      !force &&
-      w === this._lastCanvasW &&
-      h === this._lastCanvasH &&
-      dpr === this._lastDpr
-    ) {
-      return false;
-    }
-
-    this._lastDpr = dpr;
-    this._lastCanvasW = w;
-    this._lastCanvasH = h;
-
-    this.canvas.width = w;
-    this.canvas.height = h;
-
-    // Reconfigure the swapchain so the drawable texture matches the new canvas size.
-    // Some implementations accept an explicit `size`; others infer from canvas.width/height.
-    if (this.context && this._canvasConfig) {
-      const baseCfg = Object.assign({}, this._canvasConfig);
-      try {
-        this.context.configure(Object.assign({ size: [w, h] }, baseCfg));
-      } catch (_) {
-        // Fallback: configure without `size`.
-        this.context.configure(baseCfg);
-      }
-    }
-
-    // Recreate depth buffer to match the new render target size.
-    if (this.depthTexture) {
-      try {
-        this.depthTexture.destroy();
-      } catch (_) {}
-    }
-    this.depthTexture = this.device.createTexture({
-      size: [w, h],
-      format: "depth24plus",
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    this.depthTextureView = this.depthTexture.createView();
-    return true;
+    return resizeRenderer(this, options);
   }
 
   // ----------------------------
@@ -1431,84 +1200,7 @@ export class WebGPURenderer {
    * This method is intentionally idempotent.
    */
   destroy() {
-    if (this.isDestroyed) return;
-    this.isDestroyed = true;
-
-    // Suppress teardown-time warnings from async readback helpers.
-    this._suppressAsyncErrors = true;
-
-    const tryDestroy = (obj) => {
-      try {
-        if (obj && typeof obj.destroy === "function") obj.destroy();
-      } catch (_) {}
-    };
-
-    // Grid-sized resources (including readback rings and AABB staging).
-    try {
-      destroyGridResourcesImpl(this);
-    } catch (_) {}
-
-    // Per-app resources
-    tryDestroy(this.cubeVertexBuffer);
-    this.cubeVertexBuffer = null;
-    tryDestroy(this.cubeIndexBuffer);
-    this.cubeIndexBuffer = null;
-
-    tryDestroy(this.uniformBuffer);
-    this.uniformBuffer = null;
-
-    tryDestroy(this.indirectArgsBuffer);
-    this.indirectArgsBuffer = null;
-    tryDestroy(this.drawArgsParamsBuffer);
-    this.drawArgsParamsBuffer = null;
-
-    tryDestroy(this.gridProjInstanceBuffer);
-    this.gridProjInstanceBuffer = null;
-
-    tryDestroy(this.depthTexture);
-    this.depthTexture = null;
-    this.depthTextureView = null;
-
-    // Pipelines/bind groups/shader modules do not have explicit destroy calls,
-    // but clearing references allows GC to reclaim associated JS objects.
-    this.bgPipeline = null;
-    this.renderPipeline = null;
-    this.computePipeline = null;
-    this.extractPipeline = null;
-    this.initPipeline = null;
-    this.drawArgsPipeline = null;
-    this.aabbPipeline = null;
-    this.aabbArgsPipeline = null;
-    this.gridProjPipeline = null;
-
-    this.bgBindGroup = null;
-    this.cellBindGroup = null;
-    this.drawArgsBindGroup = null;
-    this.gridProjBindGroup = null;
-    this.computeBindGroups = [null, null];
-    this.extractBindGroups = [null, null];
-    this.initBindGroups = [null, null];
-
-    try {
-      this._shaderModuleCache.clear();
-    } catch (_) {}
-    this._ensureEssentialPipelinesPromise = null;
-    this._ensureAabbPipelinesPromise = null;
-
-    // Drop WebGPU device/context references.
-    this._canvasConfig = null;
-    this.context = null;
-    this.device = null;
-    this.onDeviceLost = null;
-
-    // Release BufferManager scratch references (and detach device).
-    try {
-      if (this._buffers && typeof this._buffers.destroy === "function") {
-        this._buffers.destroy();
-      } else if (this._buffers && typeof this._buffers.setDevice === "function") {
-        this._buffers.setDevice(null);
-      }
-    } catch (_) {}
+    destroyRenderer(this);
   }
 
   // ----------------------------
