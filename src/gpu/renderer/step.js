@@ -31,12 +31,12 @@ function writeStepParams(r) {
 }
 
 function resetExtractAndChangeCounters(r) {
-  // Reset counters used by extraction + change detection.
+  // Reset population counter and change-flag.
   r._queueWriteU32(r.atomicCounterBuffer, 0, r._u32_0);
   if (r.enableChangeDetection) {
     r._queueWriteU32(r.changeCounterBuffer, 0, r._u32_0);
   } else {
-    // Keep "changed" non-zero so play mode never auto-stops due to stability.
+    // Keep the change-flag non-zero so play mode never auto-stops due to stability.
     r._queueWriteU32(r.changeCounterBuffer, 0, r._u32_1);
   }
 }
@@ -229,9 +229,9 @@ export async function randomizeGrid(r, density = 0.15, initSize = null) {
   r._extractParams[extP.PAD1] = 0;
   r._queueWriteU32(r.extractParamsBuffer, 0, r._extractParams);
 
-  // Reset counters before the extract pass runs.
+  // Reset population counter before the extract pass runs.
   r._queueWriteU32(r.atomicCounterBuffer, 0, r._u32_0);
-  // Force "changed" true so UI state (e.g., auto-stop) cannot latch onto a stale 0.
+  // Force the change-flag true so UI state (e.g., auto-stop) cannot latch onto a stale 0.
   r._queueWriteU32(r.changeCounterBuffer, 0, r._u32_1);
 
   // Randomization should update UI state immediately, so we sync stats here.

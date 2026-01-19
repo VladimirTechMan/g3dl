@@ -13,7 +13,7 @@ import { debugWarn } from "../util/log.js";
  * Allocates:
  *  - populationReadbackBuffers (small ring for fast HUD updates)
  *  - statsStagingBuffers (ring for per-step population)
- *  - changeStagingBuffers (ring for per-step change detection)
+ *  - changeStagingBuffers (ring for per-step change flag)
  *
  * Also (re)initializes associated bookkeeping fields.
  *
@@ -35,7 +35,7 @@ export function createReadbackResources(r) {
   r.populationReadbackLastTimeMs = 0;
   r.populationValidGeneration = -1;
 
-  // Stats readback ring buffers (population + changeCount)
+  // Stats readback ring buffers (population + change flag)
   const RING = 3;
   r.statsStagingBuffers = new Array(RING);
   r.changeStagingBuffers = new Array(RING);

@@ -70,10 +70,10 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
    *      surviveRule   : u32   // bitmask: if bit[count] set => alive cell survives
    *      birthRule     : u32   // bitmask: if bit[count] set => dead cell becomes alive
    *      toroidal      : u32   // 1=toroidal wrap, 0=hard edges
-   *      changeEnabled : u32   // 1=increment changeCount on state flips
+   *      changeEnabled : u32   // 1=set changeCount non-zero on any state flip
    *  - binding(1): storage, read       gridIn  : array<u32>  // generation n
    *  - binding(2): storage, read_write gridOut : array<u32>  // generation n+1
-   *  - binding(3): storage, read_write changeCount : atomic<u32>
+   *  - binding(3): storage, read_write changeCount : atomic<u32> // binary change flag (0/1)
    */
   function simulation({ workgroupSize }) {
     validateWorkgroupSize(workgroupSize);
@@ -143,7 +143,9 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
 
             // Fold change detection into the main compute pass.
             if (params.changeEnabled != 0u && curr != next) {
-                atomicAdd(&changeCount, 1u);
+                // changeCount is a binary "changed" flag (0=no change, non-zero=some change).
+                // We only need a boolean for auto-stop, and atomicOr reduces the semantic surface area.
+                atomicOr(&changeCount, 1u);
             }
         }
     
