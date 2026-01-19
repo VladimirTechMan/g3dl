@@ -52,7 +52,7 @@ const SETTINGS_SCHEMA = Object.freeze({
   speed: { type: "int", min: 1, max: 10000 }, // slider value (not delay ms)
   grid: { type: "int", min: 4, max: 256 },
   gen0: { type: "int", min: 2, max: 256 },
-  density: { type: "int", min: 1, max: 30 }, // percent points
+  density: { type: "int", min: 1, max: 50 }, // percent points
   autostop: { type: "bool" },
   boundaries: { type: "bool" },
   wrap: { type: "bool" },
