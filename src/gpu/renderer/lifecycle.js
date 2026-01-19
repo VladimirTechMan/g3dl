@@ -1,7 +1,7 @@
 import { G3DL_LAYOUT } from "../dataLayout.js";
 import { MAX_PACKED_GRID_SIZE } from "../constants.js";
 import { _destroyGridResources as destroyGridResourcesImpl } from "../resources/grid.js";
-import { debugWarn, error } from "../../util/log.js";
+import { debugLog, debugWarn, error } from "../../util/log.js";
 import { LOG_MSG } from "../../util/messages.js";
 
 /**
@@ -108,6 +108,25 @@ export async function initRenderer(r) {
     window.matchMedia &&
     window.matchMedia("(pointer: coarse)").matches;
   r._caps.isCoarsePointer = !!isCoarsePointer;
+
+  // Choose portable workgroup sizes for the main grid-wide compute kernels.
+  // This must happen before we compile compute pipelines because the workgroup size is baked
+  // into the WGSL via @workgroup_size(...).
+  r.workgroupSize = r._chooseGridWorkgroupSize();
+  if (r.device?.limits && r.workgroupSize) {
+    const lim = r.device.limits;
+    debugLog(
+      "Selected grid compute workgroup size:",
+      r.workgroupSize,
+      {
+        maxInv: lim.maxComputeInvocationsPerWorkgroup,
+        maxX: lim.maxComputeWorkgroupSizeX,
+        maxY: lim.maxComputeWorkgroupSizeY,
+        maxZ: lim.maxComputeWorkgroupSizeZ,
+        coarsePointer: r._caps.isCoarsePointer,
+      },
+    );
+  }
 
   // Mobile-friendly queue pacing.
   // Coarse-pointer devices are typically phones/tablets where over-submitting work can cause

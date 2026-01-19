@@ -199,7 +199,9 @@ export class WebGPURenderer {
     this.toroidal = false;
     this.enableChangeDetection = true;
 
-    // Workgroup size tuning (x,y,z). 8x4x4 = 128 threads/workgroup (<= 256 guaranteed).
+    // Workgroup size tuning for the main grid-wide compute kernels (simulation, extraction, init).
+    // This default is overwritten during init() based on device.limits to maximize portability across
+    // desktop and mobile WebGPU implementations. Do not assume a fixed workgroup size.
     this.workgroupSize = { x: 8, y: 4, z: 4 };
 
     // Max grid size supported by per-buffer limits and conservative total-memory heuristics; populated in init().
@@ -384,6 +386,64 @@ export class WebGPURenderer {
   }
   async init() {
     return await initRenderer(this);
+  }
+
+  /**
+   * Choose a safe (x,y,z) workgroup size for "one invocation per grid cell" compute kernels.
+   *
+   * These kernels are bounds-checked (global ID vs gridSize), so workgroup shape does not affect
+   * correctness, but it must respect the device's per-dimension and total invocation limits.
+   *
+   * Selection heuristics:
+   * - Prefer larger X to improve linear memory access for the x-major flattened grid.
+   * - Cap the target invocation count on coarse-pointer devices (typically phones/tablets) to reduce
+   *   latency spikes and improve overall UI responsiveness.
+   *
+   * @returns {{x:number, y:number, z:number}}
+   */
+  _chooseGridWorkgroupSize() {
+    const lim = this.device?.limits;
+    if (!lim) return { x: 8, y: 4, z: 4 };
+
+    const maxInv =
+      typeof lim.maxComputeInvocationsPerWorkgroup === "number"
+        ? lim.maxComputeInvocationsPerWorkgroup
+        : 256;
+    const maxX =
+      typeof lim.maxComputeWorkgroupSizeX === "number" ? lim.maxComputeWorkgroupSizeX : maxInv;
+    const maxY =
+      typeof lim.maxComputeWorkgroupSizeY === "number" ? lim.maxComputeWorkgroupSizeY : maxInv;
+    const maxZ =
+      typeof lim.maxComputeWorkgroupSizeZ === "number" ? lim.maxComputeWorkgroupSizeZ : maxInv;
+
+    const targetCap = this._caps?.isCoarsePointer ? 128 : 256;
+    const targetInv = Math.max(1, Math.min(maxInv, targetCap));
+
+    // Ordered by preference: keep the prior default first, then fall back to smaller shapes.
+    const candidates = [
+      { x: 8, y: 4, z: 4 }, // 128
+      { x: 8, y: 8, z: 2 }, // 128
+      { x: 16, y: 4, z: 2 }, // 128
+      { x: 16, y: 2, z: 2 }, // 64
+      { x: 8, y: 4, z: 2 }, // 64
+      { x: 4, y: 4, z: 4 }, // 64
+      { x: 8, y: 2, z: 2 }, // 32
+      { x: 4, y: 4, z: 2 }, // 32
+      { x: 4, y: 2, z: 2 }, // 16
+      { x: 4, y: 2, z: 1 }, // 8
+      { x: 2, y: 2, z: 2 }, // 8
+      { x: 1, y: 1, z: 1 }, // 1
+    ];
+
+    for (const wg of candidates) {
+      const inv = wg.x * wg.y * wg.z;
+      if (inv > targetInv) continue;
+      if (wg.x > maxX || wg.y > maxY || wg.z > maxZ) continue;
+      return wg;
+    }
+
+    // Final safety fallback (should not be needed for sane limits).
+    return { x: 1, y: 1, z: 1 };
   }
 
   /**
