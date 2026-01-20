@@ -81,17 +81,20 @@ export async function initRenderer(r) {
     }
   });
 
-  r.maxBufferSize = r.device.limits.maxStorageBufferBindingSize;
-
   // Configure the AABB reduction kernel size based on device limits.
   r.aabbWorkgroupSize = r._chooseAabbWorkgroupSize();
 
   // Derive a safe maximum grid size from per-buffer limits (per-binding) AND a conservative total-memory heuristic.
-  // One cell = 4 bytes (u32). Each grid buffer must fit within maxStorageBufferBindingSize (and maxBufferSize).
+  // One cell = 4 bytes (u32). Each grid buffer is a STORAGE buffer bound in a bind group, so it must satisfy
+  // both the per-binding limit (maxStorageBufferBindingSize) and the overall buffer-size limit (maxBufferSize).
   const perBufferLimit = Math.min(
     r.device.limits.maxStorageBufferBindingSize,
     r.device.limits.maxBufferSize ?? r.device.limits.maxStorageBufferBindingSize,
   );
+
+  // Effective byte limit for allocating the ping-pong grid buffers.
+  // (Name intentionally avoids confusion with device.limits.maxBufferSize.)
+  r.maxGridBufferBytes = perBufferLimit;
   const maxCellsPerBuffer = Math.floor(perBufferLimit / 4);
   const maxGridFromLimits = Math.floor(Math.cbrt(maxCellsPerBuffer));
   let maxGrid = Math.max(4, Math.min(256, maxGridFromLimits));

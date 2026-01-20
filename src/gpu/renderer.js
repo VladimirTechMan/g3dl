@@ -207,6 +207,10 @@ export class WebGPURenderer {
     // Max grid size supported by per-buffer limits and conservative total-memory heuristics; populated in init().
     this.maxSupportedGridSize = 256;
 
+    // Effective byte limit for allocating the ping-pong grid STORAGE buffers.
+    // Populated in init() based on device.limits.maxStorageBufferBindingSize and device.limits.maxBufferSize.
+    this.maxGridBufferBytes = 0;
+
     // Reused small typed arrays to reduce per-step GC.
     // compute params: [gridSize, surviveRule, birthRule, toroidal, changeEnabled, padding x3]
     this._computeParams = new Uint32Array(G3DL_LAYOUT.PARAMS.SIM.U32S);
@@ -733,8 +737,8 @@ export class WebGPURenderer {
     if (size > max) {
       throw new Error(`Grid size ${size} exceeds maximum (${max})`);
     }
-    if (this.maxBufferSize && size ** 3 * 4 > this.maxBufferSize) {
-      throw new Error(`Grid size ${size} exceeds GPU limits`);
+    if (this.maxGridBufferBytes && size ** 3 * 4 > this.maxGridBufferBytes) {
+      throw new Error(`Grid size ${size} exceeds per-buffer GPU limits`);
     }
     this.gridSize = size;
     this.currentBuffer = 0;
