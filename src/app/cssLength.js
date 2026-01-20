@@ -9,7 +9,10 @@
  */
 
 // CSS fallback used when a HUD inset custom property cannot be resolved.
-export const HUD_PAD_FALLBACK_PX = 12;
+//
+// Intentionally module-private: callers should use `getHudInsetsPx({ fallbackPx })`
+// rather than depending on the default.
+const HUD_PAD_FALLBACK_PX = 12;
 
 let _cssLengthProbeEl = null;
 
@@ -28,7 +31,7 @@ const CSS_LENGTH_PROBE_PROP_BY_AXIS = {
  * @param {{ axis?: "top"|"left"|"right"|"bottom", fallbackPx?: number }=} opts
  * @returns {number} resolved pixels
  */
-export function resolveCssLengthPx(
+function resolveCssLengthPx(
   expr,
   { axis = "left", fallbackPx = 0 } = {},
 ) {

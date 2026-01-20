@@ -13,7 +13,7 @@ import { getHudInsetsPx } from "./cssLength.js";
  *
  * This mirrors the logic previously hosted in app.js.
  */
-export function detectIOS() {
+function detectIOS() {
   const ua = navigator.userAgent || "";
   const platform = navigator.platform || "";
   const maxTouch = navigator.maxTouchPoints || 0;
@@ -89,7 +89,7 @@ export function createStatsViewportPin(opts) {
  *
  * @param {HTMLElement | null} headerEl
  */
-export function matchHeaderWidths(headerEl) {
+function matchHeaderWidths(headerEl) {
   if (!headerEl) return;
 
   const h1 = headerEl.querySelector("h1");

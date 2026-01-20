@@ -12,7 +12,7 @@
  *
  * @param {Element | null} el
  */
-export function isTextEntryElement(el) {
+function isTextEntryElement(el) {
   if (!el || !el.tagName) return false;
 
   const tag = String(el.tagName).toLowerCase();
