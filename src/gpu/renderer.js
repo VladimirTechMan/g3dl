@@ -194,8 +194,8 @@ export class WebGPURenderer {
     this.inertiaDecay = 0.92; // How quickly velocity decays (0-1, higher = longer glide)
     this.minVelocity = 0.001; // Stop when velocity is below this
 
-    this.surviveRule = 0b11100000;
-    this.birthRule = 0b01000000;
+    this.surviveRule = 0b00110000; // default: S4-5 (Rule 4555)
+    this.birthRule = 0b00100000; // default: B5 (Rule 4555)
     this.toroidal = false;
     this.enableChangeDetection = true;
 
