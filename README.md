@@ -4,7 +4,7 @@
 
 For a bit of story behind the project, check [this LinkedIn post](https://www.linkedin.com/posts/vladimirtechman_webgpu-genai-cellular-activity-7414016801057067008-nl7_).
 
-**A quick demo (using Screen show mode):** [Open this link](https://vladimirtechman.github.io/g3dl/?speed=71&grid=120&gen0=120&density=15&haze=19&autostop=1&boundaries=1&wrap=0&lantern=1&screenshow=1&cellTop=4dff9a&cellBottom=4a9eff&bgTop=1f1339&bgBottom=0a2542&survive=4-5&birth=5) in a browser supporting WebGPU. (Optionally, switch to the full screen mode.) Run the simulation. Enjoy!
+**A quick demo (using Screen show mode):** Open [this link with embedded settings](https://vladimirtechman.github.io/g3dl/?speed=71&grid=120&gen0=120&density=15&haze=19&autostop=1&boundaries=1&wrap=0&lantern=1&screenshow=1&cellTop=4dff9a&cellBottom=4a9eff&bgTop=1f1339&bgBottom=0a2542&survive=4-5&birth=5) in a browser supporting WebGPU. (Optionally, switch to the full screen mode.) Run the simulation. Enjoy!
 
 ## Features
 
