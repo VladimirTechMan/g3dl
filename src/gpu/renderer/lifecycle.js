@@ -171,7 +171,10 @@ export async function initRenderer(r) {
     device: r.device,
     format: r.format,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    alphaMode: "premultiplied",
+    // The canvas is used as a full-screen render target with UI drawn in DOM layers above it.
+    // We do not rely on swapchain alpha for compositing with the page, so prefer an opaque
+    // swapchain to reduce platform-specific alpha handling and avoid unnecessary blending work.
+    alphaMode: "opaque",
   };
 
   // Configure the canvas and create the depth buffer using the current devicePixelRatio.
@@ -227,14 +230,18 @@ export function resizeRenderer(r, options = {}) {
   r.canvas.height = h;
 
   // Reconfigure the swapchain so the drawable texture matches the new canvas size.
-  // Some implementations accept an explicit `size`; others infer from canvas.width/height.
+  // Per WebGPU's usage model, the portable baseline is to size the canvas backing store
+  // via canvas.width/height and (re)configure the context without specifying an explicit
+  // `size`. Some implementations also accept a `size` field on configure(); we only use it
+  // as a last-resort fallback to reduce cross-browser variability.
   if (r.context && r._canvasConfig) {
     const baseCfg = Object.assign({}, r._canvasConfig);
     try {
-      r.context.configure(Object.assign({ size: [w, h] }, baseCfg));
-    } catch (_) {
-      // Fallback: configure without `size`.
       r.context.configure(baseCfg);
+    } catch (_) {
+      // Last resort fallback: configure with an explicit size.
+      // (This path should be rare on modern browsers.)
+      r.context.configure(Object.assign({ size: [w, h] }, baseCfg));
     }
   }
 
