@@ -13,6 +13,7 @@
 
 import { error } from "../util/log.js";
 import { LOG_MSG } from "../util/messages.js";
+import { getCaps } from "../util/caps.js";
 
 /**
  * @typedef {Object} LoopHooks
@@ -27,15 +28,8 @@ import { LOG_MSG } from "../util/messages.js";
  */
 
 // iOS/Android devices tend to have coarse pointers. We use this to pick frame pacing.
-const IS_COARSE_POINTER = (() => {
-  try {
-    return !!(
-      window.matchMedia && window.matchMedia("(pointer: coarse)").matches
-    );
-  } catch (_) {
-    return false;
-  }
-})();
+const IS_COARSE_POINTER = getCaps().isCoarsePointer;
+
 
 // Frame pacing defaults.
 // - On coarse-pointer devices, cap rendering to keep main-thread work predictable.

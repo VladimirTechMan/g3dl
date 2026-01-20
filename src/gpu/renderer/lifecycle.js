@@ -3,6 +3,7 @@ import { MAX_PACKED_GRID_SIZE } from "../constants.js";
 import { _destroyGridResources as destroyGridResourcesImpl } from "../resources/grid.js";
 import { debugLog, debugWarn, error } from "../../util/log.js";
 import { LOG_MSG } from "../../util/messages.js";
+import { getCaps } from "../../util/caps.js";
 
 /**
  * Renderer lifecycle helpers.
@@ -126,10 +127,7 @@ export async function initRenderer(r) {
 
   // Conservative, best-effort cap based on expected total GPU memory pressure.
   // WebGPU does not expose total VRAM; this is a heuristic to reduce device-loss on mobile.
-  const isCoarsePointer =
-    typeof window !== "undefined" &&
-    window.matchMedia &&
-    window.matchMedia("(pointer: coarse)").matches;
+  const { isCoarsePointer } = getCaps();
   r._caps.isCoarsePointer = !!isCoarsePointer;
 
   // Choose portable workgroup sizes for the main grid-wide compute kernels.

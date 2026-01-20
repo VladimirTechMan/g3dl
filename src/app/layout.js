@@ -7,20 +7,9 @@
  */
 
 import { getHudInsetsPx } from "./cssLength.js";
+import { isIOS } from "../util/caps.js";
 
-/**
- * Best-effort iOS / iPadOS detection (including iPadOS reporting as Mac).
- *
- * This mirrors the logic previously hosted in app.js.
- */
-function detectIOS() {
-  const ua = navigator.userAgent || "";
-  const platform = navigator.platform || "";
-  const maxTouch = navigator.maxTouchPoints || 0;
-  const isAppleMobile = /iPad|iPhone|iPod/i.test(ua);
-  const isIPadOS13Plus = platform === "MacIntel" && maxTouch > 1;
-  return isAppleMobile || isIPadOS13Plus;
-}
+
 
 /**
  * iOS Safari quirk: while pinch-zoomed, `position: fixed` is effectively anchored to the
@@ -36,7 +25,7 @@ export function createStatsViewportPin(opts) {
   const { statsPanel, signal } = opts || {};
 
   // Only needed on iOS Safari (incl. iPadOS), and only if visualViewport is available.
-  if (!detectIOS() || !statsPanel || !window.visualViewport) {
+  if (!isIOS() || !statsPanel || !window.visualViewport) {
     return { schedule: () => {}, cancel: () => {} };
   }
 
