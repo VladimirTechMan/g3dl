@@ -39,15 +39,18 @@ const IS_COARSE_POINTER = (() => {
 
 // Frame pacing defaults.
 // - On coarse-pointer devices, cap rendering to keep main-thread work predictable.
-// - When the lantern effect is enabled, cap rendering on all devices to reduce GPU load/battery usage.
+// - When the lantern effect or screen show is enabled, keep coarse-pointer devices capped
+//   to reduce GPU load/battery usage while still looking smooth.
+// - On fine-pointer devices (typical desktops/laptops), allow up to 60 FPS for lantern and
+//   screen show animation, so capable devices can render at display refresh.
 // - Pointer interaction (drag/pan) should feel immediate, so we bypass the cap while interacting.
 const COARSE_POINTER_MAX_FPS = 30;
-const LANTERN_MAX_FPS_FINE = 30;
-const LANTERN_MAX_FPS_COARSE = 20;
+const LANTERN_MAX_FPS_FINE = 60;
+const LANTERN_MAX_FPS_COARSE = 30;
 
-// Screen show camera animation is intentionally capped to preserve battery while remaining visually smooth.
-const SCREENSHOW_MAX_FPS_FINE = 30;
-const SCREENSHOW_MAX_FPS_COARSE = 20;
+// Screen show camera animation: 60 FPS on fine-pointer devices, capped on coarse-pointer devices.
+const SCREENSHOW_MAX_FPS_FINE = 60;
+const SCREENSHOW_MAX_FPS_COARSE = 30;
 
 export class LoopController {
   /**
