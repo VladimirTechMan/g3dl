@@ -12,6 +12,7 @@ You can try it [here](https://vladimirtechman.github.io/g3dl/). For a bit of sto
 - **Interactive camera**: Rotate, pan, and zoom with mouse or touch
 - **Screen show**: Optional cinematic camera autopilot while the simulation is running (Run). Disables user camera controls until turned off; uses 15–20s passes with brief fade transitions.
 - **Lantern lighting**: Optional per-cell emissive lighting with subtle time-based flicker (continues even when the simulation is paused)
+- **Haze**: Optional distance haze
 - **Copy URL with settings**: Generate a shareable URL snapshot of the current Settings values
 - **Toroidal mode**: Optional wrap-around boundaries
 - **Real-time stats**: Population and generation counters

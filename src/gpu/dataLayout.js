@@ -59,14 +59,14 @@ function isMultipleOf(n, m) {
 // ----------------------------
 //
 // WGSL: struct Uniforms
-// JS:  Float32Array (72 floats = 288 bytes) written at offset 0.
+// JS:  Float32Array (76 floats = 304 bytes) written at offset 0.
 //
 // We allocate a slightly larger uniform buffer (currently 512 bytes) to leave room for
 // future extensions without having to re-plumb buffer creation; the *active* region is
 // defined by DATA_BYTES below.
 const UNIFORMS = Object.freeze({
-  DATA_FLOATS: 72,
-  DATA_BYTES: 72 * 4,
+  DATA_FLOATS: 76,
+  DATA_BYTES: 76 * 4,
 
   // Offsets in 32-bit floats (Float32Array indices).
   F32: Object.freeze({
@@ -76,7 +76,8 @@ const UNIFORMS = Object.freeze({
 
     CELL_COLOR_TOP: 48, // vec4<f32> => bytes 192..207
     CELL_COLOR_BOTTOM: 52, // vec4<f32> => bytes 208..223
-    CAMERA_DIR: 56, // vec4<f32> => bytes 224..239
+    // vec4<f32>: xyz = camera direction, w = camera distance (|eye-target|)
+    CAMERA_DIR: 56, // bytes 224..239
 
     GRID_SIZE: 60, // f32 => byte 240
     CELL_SIZE: 61, // f32 => byte 244
@@ -95,6 +96,10 @@ const UNIFORMS = Object.freeze({
     PAD4: 69,
     PAD5: 70,
     PAD6: 71,
+
+    // Haze: vec4<f32> (rgb + max mix amount). Appended after the existing
+    // time padding so older captures remain easy to interpret.
+    HAZE: 72, // vec4<f32> => bytes 288..303
   }),
 
   WGSL_STRUCT: `struct Uniforms {
@@ -124,7 +129,10 @@ pad3: f32,
 time: f32,
 pad4: f32,
 pad5: f32,
-pad6: f32
+pad6: f32,
+
+// 288..303 bytes
+haze: vec4<f32>
 }`,
 });
 
@@ -283,7 +291,7 @@ _pad1: u32,
 function assertStatic() {
   invariant(isMultipleOf(UNIFORMS.DATA_BYTES, 16), "Uniforms size must be multiple of 16 bytes.");
   invariant(isMultipleOf(BG_UNIFORMS.DATA_BYTES, 16), "BgUniforms size must be multiple of 16 bytes.");
-  invariant(UNIFORMS.DATA_BYTES === 288, "Uniforms bytes expected to be 288 (72 f32).");
+  invariant(UNIFORMS.DATA_BYTES === 304, "Uniforms bytes expected to be 304 (76 f32).");
   invariant(BG_UNIFORMS.DATA_BYTES === 48, "BgUniforms bytes expected to be 48 (12 f32).");
   invariant(PARAMS.SIM.BYTES === 32, "SIM params bytes expected to be 32 (8 u32).");
   invariant(PARAMS.EXTRACT.BYTES === 16, "EXTRACT params bytes expected to be 16 (4 u32).");

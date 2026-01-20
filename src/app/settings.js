@@ -29,6 +29,7 @@ const SETTINGS_URL_KEYS = Object.freeze([
   "grid",
   "gen0",
   "density",
+  "haze",
   "autostop",
   "boundaries",
   "wrap",
@@ -53,6 +54,7 @@ const SETTINGS_SCHEMA = Object.freeze({
   grid: { type: "int", min: 4, max: 256 },
   gen0: { type: "int", min: 2, max: 256 },
   density: { type: "int", min: 1, max: 50 }, // percent points
+  haze: { type: "int", min: 0, max: 30 }, // percent points
   autostop: { type: "bool" },
   boundaries: { type: "bool" },
   wrap: { type: "bool" },
@@ -181,6 +183,7 @@ export function applySettingsFromUrl(dom, opts = {}) {
     initSizeInput,
     densitySlider,
     densityTip,
+    hazeSlider,
     stableStopCheckbox,
     gridProjectionCheckbox,
     toroidalCheckbox,
@@ -229,6 +232,14 @@ export function applySettingsFromUrl(dom, opts = {}) {
     const max = parseInt(densitySlider.max, 10) || SETTINGS_SCHEMA.density.max;
     densitySlider.value = String(clampInt(densV, min, max));
     if (densityTip) densityTip.textContent = densitySlider.value + "%";
+  }
+
+  // Haze strength is in percent points
+  const hazeV = parseIntParam(params.get("haze"));
+  if (hazeV != null && hazeSlider) {
+    const min = parseInt(hazeSlider.min, 10) || SETTINGS_SCHEMA.haze.min;
+    const max = parseInt(hazeSlider.max, 10) || SETTINGS_SCHEMA.haze.max;
+    hazeSlider.value = String(clampInt(hazeV, min, max));
   }
 
   // Booleans
@@ -300,11 +311,14 @@ function buildUrlWithSettings(dom, fallbacks) {
 
   // Remove any previous values for our keys
   for (const k of SETTINGS_URL_KEYS) params.delete(k);
-
   const speedV = dom.speedSlider ? parseInt(dom.speedSlider.value, 10) : null;
   const gridV = dom.sizeInput ? parseInt(dom.sizeInput.value, 10) : null;
   const gen0V = dom.initSizeInput ? parseInt(dom.initSizeInput.value, 10) : null;
+
+  // Drop legacy key (no longer supported)
+  params.delete("fog");
   const densV = dom.densitySlider ? parseInt(dom.densitySlider.value, 10) : null;
+  const hazeV = dom.hazeSlider ? parseInt(dom.hazeSlider.value, 10) : null;
 
   params.set("speed", String(speedV || 300));
   params.set("grid", String(gridV || fallbacks.fallbackGridSize));
@@ -313,6 +327,7 @@ function buildUrlWithSettings(dom, fallbacks) {
     "density",
     String(densV || Math.round(fallbacks.fallbackDensity * 100)),
   );
+  params.set("haze", String(hazeV || 0));
 
   if (dom.stableStopCheckbox)
     params.set("autostop", dom.stableStopCheckbox.checked ? "1" : "0");

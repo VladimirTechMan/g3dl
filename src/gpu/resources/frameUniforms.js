@@ -120,11 +120,16 @@ function updateRenderUniforms(r) {
   u[uf.CELL_COLOR_BOTTOM + 2] = r.cellColorBottom[2];
   u[uf.CELL_COLOR_BOTTOM + 3] = 1.0;
 
-  // cameraDir vec4 (XYZ + padding)
+  // cameraDir vec4
+  //  - xyz: camera direction (normalized, pointing from camera to target)
+  //  - w  : camera distance (|eye-target|), used by some purely-visual effects (haze)
   u[uf.CAMERA_DIR + 0] = camDirX;
   u[uf.CAMERA_DIR + 1] = camDirY;
   u[uf.CAMERA_DIR + 2] = camDirZ;
-  u[uf.CAMERA_DIR + 3] = 0.0;
+  const cdx = r._target[0] - r._eye[0];
+  const cdy = r._target[1] - r._eye[1];
+  const cdz = r._target[2] - r._eye[2];
+  u[uf.CAMERA_DIR + 3] = Math.max(1e-6, Math.hypot(cdx, cdy, cdz));
 
   // gridSize/cellSize + padding to 16-byte boundary
   u[uf.GRID_SIZE] = r.gridSize;
@@ -145,6 +150,16 @@ function updateRenderUniforms(r) {
   u[uf.PAD4] = 0.0;
   u[uf.PAD5] = 0.0;
   u[uf.PAD6] = 0.0;
+
+  // Haze: rgb + strength.
+  // - Strength is a maximum blend amount in [0..0.30]. 0 disables the effect.
+  // - Haze color is derived from the background gradient midpoint so the effect
+  //   remains visually consistent with user-selected background colors.
+  const hazeStrength = Math.max(0.0, Math.min(0.30, r.hazeStrength || 0.0));
+  u[uf.HAZE + 0] = 0.5 * (r.bgColorTop[0] + r.bgColorBottom[0]);
+  u[uf.HAZE + 1] = 0.5 * (r.bgColorTop[1] + r.bgColorBottom[1]);
+  u[uf.HAZE + 2] = 0.5 * (r.bgColorTop[2] + r.bgColorBottom[2]);
+  u[uf.HAZE + 3] = hazeStrength;
 
   r._queueWriteF32(r.uniformBuffer, 0, u);
 }

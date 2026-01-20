@@ -16,6 +16,7 @@
  * @property {HTMLInputElement | null} bgColorPicker2
  * @property {HTMLInputElement | null} toroidalCheckbox
  * @property {HTMLInputElement | null} stableStopCheckbox
+ * @property {HTMLInputElement | null} hazeSlider
  * @property {HTMLInputElement | null} lanternCheckbox
  * @property {HTMLInputElement | null} screenShowCheckbox
  * @property {HTMLInputElement | null} gridProjectionCheckbox
@@ -35,6 +36,7 @@ export function createRendererSettingsHandlers(deps) {
     bgColorPicker2,
     toroidalCheckbox,
     stableStopCheckbox,
+    hazeSlider,
     lanternCheckbox,
     screenShowCheckbox,
     gridProjectionCheckbox,
@@ -59,6 +61,26 @@ export function createRendererSettingsHandlers(deps) {
     if (!renderer) return;
     renderer.setLanternLightingEnabled(!!(lanternCheckbox && lanternCheckbox.checked));
     requestRender();
+  }
+
+  /**
+   * Haze strength slider.
+   *
+   * Slider range is 0..30 (percentage points). The renderer expects a 0..0.30
+   * scalar that represents the maximum blend toward the haze color.
+   */
+  function handleHazePreview() {
+    const renderer = getRenderer();
+    if (!renderer || !hazeSlider) return;
+    const pct = parseInt(hazeSlider.value, 10);
+    const strength = Number.isFinite(pct) ? Math.max(0, Math.min(30, pct)) * 0.01 : 0.0;
+    renderer.setHazeStrength?.(strength);
+    requestRender();
+  }
+
+  // Haze is purely visual, so commit == preview.
+  function handleHazeChange() {
+    handleHazePreview();
   }
 
   function handleScreenShowChange() {
@@ -91,6 +113,8 @@ export function createRendererSettingsHandlers(deps) {
   return {
     handleCellColorChange,
     handleBgColorChange,
+    handleHazePreview,
+    handleHazeChange,
     handleLanternChange,
     handleScreenShowChange,
     handleGridProjectionChange,

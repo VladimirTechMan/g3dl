@@ -9,7 +9,7 @@
  */
 export function _createUniformBuffer(r) {
   r.uniformBuffer = r._createBuffer("uniformBuffer", {
-    // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 288 bytes),
+    // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 304 bytes),
     // but we keep extra room to allow future expansion without reallocating.
     size: 512,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,

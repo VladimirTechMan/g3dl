@@ -433,7 +433,9 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                 @location(1) local: vec3<f32>,
                 @location(2) grid: vec3<f32>,
                 @location(3) cellColor: vec3<f32>,
-                @location(4) phase: f32
+                @location(4) phase: f32,
+                // View-space depth (positive forward), used for cheap haze.
+                @location(5) viewZ: f32
             }
 
             @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -474,7 +476,9 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                 o.grid = off / u.gridSize;
                 o.cellColor = color;
                 o.phase = hash3(ux, uy, uz);
-                o.pos = u.projection * u.view * u.model * vec4<f32>(wpos, 1.0);
+                let viewPos = u.view * u.model * vec4<f32>(wpos, 1.0);
+                o.pos = u.projection * viewPos;
+                o.viewZ = -viewPos.z;
                 return o;
             }
 
@@ -529,6 +533,27 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                     rgb = rgb * 0.72 + emissive;
                 }
 
+                // Haze: distance-based fade toward the background midpoint.
+                // Strength is u.haze.w (0..0.30). 0 disables the effect.
+                //
+                // The camera distance (|eye-target|) is stored in u.cameraDir.w so the
+                // haze curve remains meaningful across zoom levels.
+                //
+                // Model: exponential distance fog ("exp2" variant).
+                //  - hazeT = 1 - 2^(-density * zN)
+                //  - hazeMix = hazeT * strength
+                //
+                // This is cheap (one exp2) and tends to look more natural than linear ramps.
+                if (u.haze.w > 0.0001) {
+                    let vz = max(i.viewZ, 0.0);
+                    let camDist = max(u.cameraDir.w, 1e-6);
+                    let zN = vz / camDist;
+                    let density = 3.0;
+                    let hazeT = 1.0 - exp2(-density * zN);
+                    let hazeMix = clamp(hazeT, 0.0, 1.0) * u.haze.w;
+                    rgb = mix(rgb, u.haze.xyz, hazeMix);
+                }
+
                 return vec4<f32>(min(rgb, vec3<f32>(1.0)), 1.0);
             }
         
@@ -552,6 +577,7 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
         struct VOut {
             @builtin(position) pos: vec4<f32>,
             @location(0) local: vec2<f32>, // [-0.5..0.5] quad-local, used for subtle alpha shaping
+            @location(1) viewZ: f32, // View-space depth for haze
         };
 
         fn localForVertex(vid: u32) -> vec2<f32> {
@@ -575,7 +601,9 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
 
             var o: VOut;
             o.local = l;
-            o.pos = u.projection * u.view * u.model * vec4<f32>(wpos, 1.0);
+            let viewPos = u.view * u.model * vec4<f32>(wpos, 1.0);
+            o.pos = u.projection * viewPos;
+            o.viewZ = -viewPos.z;
             return o;
         }
 
@@ -583,8 +611,23 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
             // Filled translucent plane: slightly stronger in the middle, softer near edges.
             let edge = max(abs(i.local.x), abs(i.local.y)); // 0..0.5
             let fade = 1.0 - smoothstep(0.40, 0.50, edge);  // fade toward edges
-            let a = 0.11 * (0.65 + 0.35 * fade);
-            return vec4<f32>(0.82, 0.86, 0.95, a);
+            var a = 0.11 * (0.65 + 0.35 * fade);
+            var rgb = vec3<f32>(0.82, 0.86, 0.95);
+
+            // Apply the same exponential haze as the main cell renderer.
+            if (u.haze.w > 0.0001) {
+                let vz = max(i.viewZ, 0.0);
+                let camDist = max(u.cameraDir.w, 1e-6);
+                let zN = vz / camDist;
+                let density = 3.0;
+                let hazeT = 1.0 - exp2(-density * zN);
+                let hazeMix = clamp(hazeT, 0.0, 1.0) * u.haze.w;
+                rgb = mix(rgb, u.haze.xyz, hazeMix);
+                // Fade overlay alpha with haze so it recedes along with geometry.
+                a = a * (1.0 - hazeMix);
+            }
+
+            return vec4<f32>(rgb, a);
         }
     
     `;

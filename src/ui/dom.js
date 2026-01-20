@@ -54,6 +54,7 @@ function byId(id) {
  * @property {HTMLInputElement|null} toroidalCheckbox
  * @property {HTMLInputElement|null} stableStopCheckbox
  * @property {HTMLInputElement|null} lanternCheckbox
+ * @property {HTMLInputElement|null} hazeSlider
  * @property {HTMLInputElement|null} screenShowCheckbox
  * @property {HTMLButtonElement|null} copyUrlBtn
  * @property {HTMLElement|null} selfTestGroup
@@ -132,6 +133,7 @@ const _dom = (() => {
   const lanternCheckbox = /** @type {HTMLInputElement|null} */ (
     byId("lanternCheckbox")
   );
+  const hazeSlider = /** @type {HTMLInputElement|null} */ (byId("hazeSlider"));
   const screenShowCheckbox = /** @type {HTMLInputElement|null} */ (
     byId("screenShowCheckbox")
   );
@@ -185,6 +187,7 @@ const _dom = (() => {
     toroidalCheckbox,
     stableStopCheckbox,
     lanternCheckbox,
+    hazeSlider,
     screenShowCheckbox,
     copyUrlBtn,
     selfTestGroup,

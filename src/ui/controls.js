@@ -45,6 +45,10 @@ export function bindControls(dom, handlers) {
   add(d.densitySlider, "input", handlers.handleDensityPreview);
   add(d.densitySlider, "change", handlers.handleDensityChange);
 
+  // Haze is a purely visual effect, so we apply it immediately on drag.
+  add(d.hazeSlider, "input", handlers.handleHazePreview);
+  add(d.hazeSlider, "change", handlers.handleHazeChange);
+
   // Ensure the density tooltip cannot get "stuck" visible if the pointer is released
   // outside the slider (some browsers do not always dispatch a 'change' in that case).
   if (handlers.handleDensityPointerDown) {

@@ -76,6 +76,7 @@ function isDebugEnabledFromUrl(search = window.location.search) {
  * @property {HTMLInputElement|null} birthInput
  * @property {HTMLInputElement|null} toroidalCheckbox
  * @property {HTMLInputElement|null} stableStopCheckbox
+ * @property {HTMLInputElement|null} hazeSlider
  * @property {HTMLInputElement|null} lanternCheckbox
  * @property {HTMLInputElement|null} screenShowCheckbox
  * @property {HTMLInputElement|null} gridProjectionCheckbox
@@ -131,6 +132,7 @@ export async function runStartupSequence(deps) {
     birthInput,
     toroidalCheckbox,
     stableStopCheckbox,
+    hazeSlider,
     lanternCheckbox,
     screenShowCheckbox,
     gridProjectionCheckbox,
@@ -227,6 +229,7 @@ export async function runStartupSequence(deps) {
     bgColorPicker2,
     toroidalCheckbox,
     stableStopCheckbox,
+    hazeSlider,
     lanternCheckbox,
     screenShowCheckbox,
     gridProjectionCheckbox,
@@ -293,6 +296,7 @@ export async function runStartupSequence(deps) {
   rendererSettingsUi.handleToroidalChange();
   rendererSettingsUi.handleCellColorChange();
   rendererSettingsUi.handleBgColorChange();
+  rendererSettingsUi.handleHazeChange();
   rendererSettingsUi.handleLanternChange();
   rendererSettingsUi.handleScreenShowChange();
   rendererSettingsUi.handleGridProjectionChange();

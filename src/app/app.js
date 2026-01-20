@@ -49,6 +49,7 @@ const {
   birthInput,
   toroidalCheckbox,
   stableStopCheckbox,
+  hazeSlider,
   lanternCheckbox,
   screenShowCheckbox,
   selfTestGroup,
@@ -648,6 +649,7 @@ async function init() {
     surviveInput,
     birthInput,
     toroidalCheckbox,
+    hazeSlider,
     lanternCheckbox,
     screenShowCheckbox,
     gridProjectionCheckbox,
@@ -755,6 +757,8 @@ function installUiBindings() {
     handlePresetChange,
     handleRuleInputChange,
     handleRuleKeydown,
+    handleHazePreview,
+    handleHazeChange,
     handleLanternChange,
     handleScreenShowChange,
     handleGridProjectionChange,
@@ -1035,6 +1039,21 @@ function handleCellColorChange() {
 function handleBgColorChange() {
   if (!rendererSettingsUi) return;
   rendererSettingsUi.handleBgColorChange();
+}
+
+/**
+ * Haze is a purely visual effect.
+ *
+ * We apply it immediately while the user drags the slider (no tooltip).
+ */
+function handleHazePreview() {
+  if (!rendererSettingsUi) return;
+  rendererSettingsUi.handleHazePreview();
+}
+
+function handleHazeChange() {
+  if (!rendererSettingsUi) return;
+  rendererSettingsUi.handleHazeChange();
 }
 
 function handleLanternChange() {

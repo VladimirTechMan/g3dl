@@ -253,6 +253,10 @@ export class WebGPURenderer {
     this.lanternEnabled = 0.0; // 0.0 or 1.0 (stored as float for uniform packing)
     this.lanternStrength = 0.55; // tuned for subtle glow
 
+    // Optional haze (purely visual)
+    // Stored as a maximum blend amount in [0..0.30]. 0 disables the effect.
+    this.hazeStrength = 0.0;
+
     // Optional projected outline of the outer grid box (rendered as a subtle 'shadow' behind cells)
     this.gridProjectionEnabled = 1.0; // on by default; user can disable in Settings
     this.gridProjPipeline = null;
@@ -794,6 +798,16 @@ export class WebGPURenderer {
   setBackgroundColors(topHex, bottomHex) {
     this.bgColorTop = hexToRgb01(topHex);
     this.bgColorBottom = hexToRgb01(bottomHex);
+  }
+
+  /**
+   * Set haze strength.
+   *
+   * @param {number} strength Maximum blend amount in [0..0.30].
+   */
+  setHazeStrength(strength) {
+    const n = Number(strength);
+    this.hazeStrength = Number.isFinite(n) ? Math.max(0.0, Math.min(0.30, n)) : 0.0;
   }
 
   setLanternLightingEnabled(enabled) {
