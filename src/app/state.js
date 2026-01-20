@@ -92,6 +92,14 @@ function createScreenShowState() {
     smoothUp: null,
     smoothReset: false,
     lastSmoothMs: 0,
+
+    // One-shot hint for the *next* Screen show pass: when Run is started from
+    // generation 0, begin slightly outside the Gen0 initialization cube (the
+    // "Gen0 edge" region) to provide a clearer initial establishing view.
+    //
+    // This flag is set in ScreenShowController.startFromRun() and consumed
+    // (then cleared) by ScreenShowController.startPass().
+    forceOutsideInitCubeOnce: false,
   };
 }
 

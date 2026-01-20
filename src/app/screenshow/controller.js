@@ -254,6 +254,7 @@ export class ScreenShowController {
         ss.pendingStartTimer = null;
       }
       ss.pendingStart = false;
+      ss.forceOutsideInitCubeOnce = false;
       ss.pendingStartDueMs = 0;
       ss.pendingStartRemainingMs = 0;
       // Restart with a fresh pass on the next Run.
@@ -286,6 +287,12 @@ export class ScreenShowController {
 
     // Ensure we don't reuse a stale pass.
     ss.pass = null;
+
+    // If the run is starting from generation 0, bias the *first* pass to begin
+    // slightly outside the Gen0 initialization region ("Gen0 edge") so the user
+    // gets an establishing view of the initial population. This is consumed by
+    // startPass() and cleared immediately after use.
+    ss.forceOutsideInitCubeOnce = this.state.sim.generation === 0;
 
     // Fade out the current scene first (requirement).
     this._dimCanvas();
@@ -328,6 +335,7 @@ export class ScreenShowController {
       ss.pendingStartTimer = null;
     }
     ss.pendingStart = false;
+    ss.forceOutsideInitCubeOnce = false;
     ss.pendingStartDueMs = 0;
     ss.pendingStartRemainingMs = 0;
     if (alsoClearOverride) {
@@ -373,8 +381,37 @@ export class ScreenShowController {
 
     // Choose a distance that keeps the live cluster comfortably visible.
     // These bounds also serve as the "collision" envelope: we stay outside the cluster radius plus padding.
-    const minDist = r + cs * 10.0;
-    const maxDist = Math.min(gs * cs * 4.0, r * 12.0 + cs * 40.0);
+    let minDist = r + cs * 10.0;
+    let maxDist = Math.min(gs * cs * 4.0, r * 12.0 + cs * 40.0);
+
+    // Special case: when Screen show is started from generation 0 (Run), begin the
+    // first pass slightly outside the Gen0 initialization cube so the user sees the
+    // full seeded region immediately.
+    //
+    // Note: this is intentionally one-shot (cleared below). We do *not* want to bias
+    // subsequent passes because the live cluster will typically move away from its
+    // Gen0 distribution.
+    let minStartRadiusFromOrigin = 0;
+    if (ss.forceOutsideInitCubeOnce) {
+      ss.forceOutsideInitCubeOnce = false;
+
+      const initRegion = Math.min(
+        Math.max(1, Number(this.state.settings?.initSize) || gs),
+        gs,
+      );
+
+      const initHalf = initRegion * cs * 0.5;
+      const initCubeSphereR = initHalf * 1.7320508075688772; // sqrt(3)
+
+      // "Slightly outside" the cube: use a small world-space padding in addition to
+      // a modest radius scale so the initial framing is not clipped.
+      minStartRadiusFromOrigin = initCubeSphereR * 1.03 + cs * 2.0;
+
+      // Ensure focus-relative constraints allow selecting a point at/above that radius.
+      // (This is the main constraint used when focusCenter is near origin.)
+      minDist = Math.max(minDist, initCubeSphereR * 1.06 + cs * 3.0);
+      maxDist = Math.max(maxDist, minDist + cs * 8.0);
+    }
 
     // Screen show start-point selection: sample points along a radial line from the *grid box center* (world origin),
     // with a target mix of:
@@ -400,6 +437,7 @@ export class ScreenShowController {
       cs,
       flyThroughFactor,
       aabbWorld,
+      minStartRadiusFromOrigin,
     );
 
     // Convert the chosen start position into the pass parameterization (yaw/pitch/dist around the focus center).
@@ -725,6 +763,7 @@ function pickScreenShowStartEyeWorld(
   cs,
   flyThroughFactor,
   aabbWorld,
+  minStartRadiusFromOrigin = 0,
 ) {
   const half = gs * cs * 0.5;
   const cubeSphereR = half * 1.7320508075688772; // sqrt(3), bounding sphere radius of the grid cube
@@ -745,6 +784,9 @@ function pickScreenShowStartEyeWorld(
 
     // Sample along the radius from the grid center with a mild bias toward the interval center.
     const t = randRangeCenterBiased(rMin, cubeSphereMax);
+    // One-shot constraint for the initial Gen0 Screen show pass: require the eye to
+    // begin outside the Gen0 initialization cube (see startPass()).
+    if (t < minStartRadiusFromOrigin) continue;
     const px = dir[0] * t;
     const py = dir[1] * t;
     const pz = dir[2] * t;
@@ -779,6 +821,6 @@ function pickScreenShowStartEyeWorld(
 
   // Fallback: a stable outside-ish view on the cube sphere shell.
   const dir = randomUnitVec3();
-  const t = cubeSphereR;
+  const t = Math.min(cubeSphereMax, Math.max(cubeSphereR, minStartRadiusFromOrigin));
   return [dir[0] * t, dir[1] * t, dir[2] * t];
 }
