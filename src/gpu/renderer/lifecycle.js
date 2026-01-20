@@ -33,19 +33,39 @@ export async function initRenderer(r) {
   if (!adapter) throw new Error("No GPU adapter found");
 
   // Capability negotiation:
-  // - Prefer requesting the full adapter limits for large storage buffers when available.
-  // - Fall back to default limits if the request is rejected by the implementation.
+  // WebGPU implementations may expose adapter.limits that are higher than the default device limits.
+  // Requesting the adapter maximums is unnecessary (and some drivers reject oversized requests).
+  //
+  // Policy: request only what we *actually* need for our supported grid-size cap, then fall back
+  // to default limits if the implementation rejects the request.
+  //
+  // Today the UI clamps gridSize to <= 256 and rendering packs per-axis coordinates, so we
+  // negotiate buffer limits sufficient for a 256^3 u32 grid buffer (and a same-sized live-cell list).
   const limits = adapter.limits;
-  const WANT = 134217728; // 128 MiB is a useful threshold for large 3D grids.
+
+  // Largest single STORAGE buffer we expect to bind, in bytes.
+  //  - grid buffer: gridSize^3 * 4 bytes (u32)
+  //  - livingCellsBuffer: same size (worst case: every cell alive)
+  const TARGET_GRID_SIZE = Math.min(256, MAX_PACKED_GRID_SIZE);
+  const REQUIRED_STORAGE_BYTES = TARGET_GRID_SIZE ** 3 * 4;
+
+  // Small alignment to avoid edge-case rejection on some implementations (not required by spec,
+  // but harmless and keeps requested values "round").
+  const alignUp = (n, a) => Math.ceil(n / a) * a;
+  const requiredBytes = alignUp(REQUIRED_STORAGE_BYTES, 256);
+
   const requiredLimits = {};
   if (
     typeof limits.maxStorageBufferBindingSize === "number" &&
-    limits.maxStorageBufferBindingSize > WANT
+    limits.maxStorageBufferBindingSize >= requiredBytes
   ) {
-    requiredLimits.maxStorageBufferBindingSize = limits.maxStorageBufferBindingSize;
+    requiredLimits.maxStorageBufferBindingSize = requiredBytes;
   }
-  if (typeof limits.maxBufferSize === "number" && limits.maxBufferSize > WANT) {
-    requiredLimits.maxBufferSize = limits.maxBufferSize;
+  if (
+    typeof limits.maxBufferSize === "number" &&
+    limits.maxBufferSize >= requiredBytes
+  ) {
+    requiredLimits.maxBufferSize = requiredBytes;
   }
 
   const deviceDesc = Object.keys(requiredLimits).length ? { requiredLimits } : {};
