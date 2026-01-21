@@ -13,6 +13,17 @@
     <div id="app">
       <canvas id="glCanvas"></canvas>
 
+      <!-- Loading overlay (visible until WebGPU + UI initialization completes). -->
+      <div id="loadingOverlay" class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-card glass-chrome">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <div class="loading-text">
+            <div class="loading-title">Starting…</div>
+            <div class="loading-subtitle">Initializing WebGPU</div>
+          </div>
+        </div>
+      </div>
+
       <div id="ui-overlay">
         <div id="infoPanel" class="glass-chrome" aria-label="Links">
           <button

@@ -565,6 +565,20 @@ function handleStepError(err) {
 
 // Input (pointer/touch/mouse) state is managed by OrbitControls.
 
+
+/**
+ * Fade out and remove the initial loading overlay, if present.
+ */
+function hideLoadingOverlay() {
+  const overlay = document.getElementById("loadingOverlay");
+  if (!overlay) return;
+  if (overlay.classList.contains("is-hidden")) return;
+
+  overlay.classList.add("is-hidden");
+  // Remove from the DOM after the fade to avoid blocking focus/interaction.
+  window.setTimeout(() => overlay.remove(), 220);
+}
+
 /**
  * Initialize the application
  */
@@ -670,12 +684,15 @@ async function init() {
   densityUi = startup.densityUi;
   rendererSettingsUi = startup.rendererSettingsUi;
   rulesUi = startup.rulesUi;
+
+  hideLoadingOverlay();
 }
 
 /**
  * Show message when WebGPU is not available
  */
 function showNotSupportedMessage(reason) {
+  hideLoadingOverlay();
   // Ensure we only ever have one overlay.
   const existing = document.getElementById("webgpu-not-supported");
   if (existing) existing.remove();
@@ -1088,4 +1105,5 @@ function handleStableStopChange() {
 // Start the application
 init().catch((err) => {
   error(LOG_MSG.INIT_FAILED, err);
+  showNotSupportedMessage(err?.message || "Initialization failed.");
 });
