@@ -160,12 +160,26 @@ body {
     var(--hud-inset-left);
   background: rgba(10, 10, 15, 0.82);
   z-index: 1000;
-  opacity: 1;
+
+  /* Reduce “flash of loader” on fast loads:
+     keep the overlay present (so it can cover slow networks / slow JS),
+     but delay its fade-in slightly so it does not appear at all on the fast path. */
+  opacity: 0;
   visibility: visible;
+  will-change: opacity;
+  animation: g3dl-loading-overlay-in 160ms ease-out 500ms both;
+
   transition: opacity var(--transition-fast), visibility var(--transition-fast);
 }
 
+@keyframes g3dl-loading-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .loading-overlay.is-hidden {
+  /* Cancel delayed fade-in if we hide quickly (fast path) */
+  animation: none;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -224,6 +238,8 @@ body {
   }
   .loading-overlay {
     transition: none;
+    /* Still delay showing the overlay to avoid “flash of loader”, but avoid animation. */
+    animation: g3dl-loading-overlay-in 1ms linear 500ms both;
   }
 }
 
