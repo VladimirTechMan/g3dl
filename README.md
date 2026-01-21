@@ -8,19 +8,19 @@ For a bit of story behind the project, check [this LinkedIn post](https://www.li
 
 ## Features
 
-- **Configurable rules**: Customize survival and birth rules
-- **WebGPU compute shaders**: Simulation runs entirely on the GPU for maximum performance
-- **Instanced rendering**: Efficient rendering of hundreds of thousands of cubes
-- **Interactive camera**: Rotate, pan, and zoom with mouse or touch
-- **Screen show**: Optional cinematic camera autopilot while the simulation is running (Run). Disables user camera controls until turned off; uses 15–20s passes with brief fade transitions.
-- **Lantern lighting**: Optional per-cell emissive lighting with subtle time-based flicker (continues even when the simulation is paused)
-- **Haze**: Optional distance haze
-- **Copy URL with settings**: Generate a shareable URL snapshot of the current Settings values
-- **Toroidal mode**: Optional wrap-around boundaries
-- **Real-time stats**: Population and generation counters
-- **Auto-stop when stable**: Optionally stop playback when the automaton reaches a static state
+- **Configurable rules**: Customize survival and birth rules.
+- **WebGPU compute shaders**: Simulation runs entirely on the GPU for maximum performance.
+- **Instanced rendering**: Efficient rendering of hundreds of thousands of cubes.
+- **Interactive camera**: Rotate, pan, and zoom with mouse or touch.
+- **Screen show**: Optional cinematic camera autopilot while the simulation is running. Disables user camera controls until turned off; uses 15–20s passes with brief fade transitions.
+- **Lantern lighting**: Optional per-cell emissive lighting with subtle time-based flicker (continues even when the simulation is paused).
+- **Haze**: Optional distance haze.
+- **Copy URL with settings**: Generate a shareable URL snapshot of the current Settings values.
+- **Toroidal mode**: Optional wrap-around boundaries.
+- **Real-time stats**: Population and generation counters.
+- **Auto-stop when stable**: Optionally stop playback when the automaton reaches a static state.
 - **Device-aware grid limits**: UI clamps grid size to conservative limits based on WebGPU buffer limits, memory budget heuristics, and an interactive rendering cap.
-- **Auto-suspend when not visible**: Stop simulation and rendering when the web app is hidden, to reduce resource and power usage
+- **Auto-suspend when not visible**: Stop simulation and rendering when the web app is hidden, to reduce resource and power usage.
 
 ## Requirements
 
