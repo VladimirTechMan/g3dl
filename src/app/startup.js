@@ -50,24 +50,6 @@ import { createRulesController } from "./rulesUi.js";
  * @property {() => Promise<void>} waitForIdle
  * @property {(opts?: { showToastOnFailure?: boolean }) => Promise<boolean>} reset
  * @property {any} fullscreen
- * @property {HTMLButtonElement|null} fullscreenBtn
- * @property {HTMLInputElement} sizeInput
- * @property {HTMLInputElement|null} initSizeInput
- * @property {HTMLInputElement|null} densitySlider
- * @property {HTMLElement|null} densityTip
- * @property {HTMLInputElement|null} cellColorPicker
- * @property {HTMLInputElement|null} cellColorPicker2
- * @property {HTMLInputElement|null} bgColorPicker
- * @property {HTMLInputElement|null} bgColorPicker2
- * @property {HTMLSelectElement|null} presetSelect
- * @property {HTMLInputElement|null} surviveInput
- * @property {HTMLInputElement|null} birthInput
- * @property {HTMLInputElement|null} toroidalCheckbox
- * @property {HTMLInputElement|null} stableStopCheckbox
- * @property {HTMLInputElement|null} hazeSlider
- * @property {HTMLInputElement|null} lanternCheckbox
- * @property {HTMLInputElement|null} screenShowCheckbox
- * @property {HTMLInputElement|null} gridProjectionCheckbox
  */
 
 /**
@@ -106,6 +88,10 @@ export async function runStartupSequence(deps) {
     waitForIdle,
     reset,
     fullscreen,
+  } = deps;
+
+  // DOM references are provided via the centralized DOM cache.
+  const {
     fullscreenBtn,
     sizeInput,
     initSizeInput,
@@ -124,7 +110,7 @@ export async function runStartupSequence(deps) {
     lanternCheckbox,
     screenShowCheckbox,
     gridProjectionCheckbox,
-  } = deps;
+  } = dom;
 
   // Apply device-derived maximum grid size to the UI.
   const maxGrid =
