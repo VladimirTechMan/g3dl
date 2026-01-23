@@ -803,7 +803,7 @@ function installUiBindings() {
  * impact normal load/startup costs.
  */
 async function handleSelfTestButton() {
-  // The button exists in the DOM but is hidden unless ?debug=1 is present.
+  // The button exists in the DOM but is hidden unless debug mode is enabled via the URL (e.g., ?debug or ?debug=1).
   if (!selfTestBtn) return;
   if (selfTestGroup && selfTestGroup.hidden) return;
   if (isSelfTesting) return;
@@ -825,8 +825,7 @@ async function handleSelfTestButton() {
     "#controls button, #controls input, #controls select, #controls textarea," +
       "#header button, #header input, #header select, #header textarea," +
       "#settings-panel button, #settings-panel input, #settings-panel select, #settings-panel textarea," +
-      "#help-panel button, #help-panel input, #help-panel select, #help-panel textarea," +
-      "#about-panel button, #about-panel input, #about-panel select, #about-panel textarea",
+      "#help-panel button, #help-panel input, #help-panel select, #help-panel textarea",
   );
 
   for (const el of candidates) {

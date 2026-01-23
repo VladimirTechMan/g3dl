@@ -96,7 +96,8 @@ export function bindControls(dom, handlers) {
   }
 
   // Debug-only: correctness self-test button.
-  // The button is present in the DOM but hidden unless ?debug=1 is set.
+  // The button is present in the DOM but hidden unless debug mode is enabled
+  // via the URL (e.g., ?debug or ?debug=1).
   if (d.selfTestBtn && typeof handlers.handleSelfTestButton === "function") {
     add(d.selfTestBtn, "click", () => handlers.handleSelfTestButton());
   }

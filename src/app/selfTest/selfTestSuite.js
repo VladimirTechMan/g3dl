@@ -2,7 +2,7 @@
  * Correctness self-test suite (debug-only).
  *
  * This module is dynamically imported when the user clicks the "Self-test"
- * button (available only when the URL includes ?debug=1).
+ * button (available only when debug mode is enabled via the URL, e.g., ?debug or ?debug=1).
  *
  * Design goals:
  * - Provide a deterministic GPU-vs-CPU validation of the simulation kernel.

@@ -123,7 +123,7 @@ All CPU-to-GPU writes use small helper methods in `renderer.js` (`_queueWrite*`)
 `device.queue.writeBuffer()` directly. A reusable scratch `ArrayBuffer` backs small parameter writes
 to avoid per-step allocations (important for UI responsiveness on mobile browsers)
 
-When debug checks are enabled (`?debug=1` / `?debug=true`), the write helpers additionally validate:
+When debug checks are enabled (`?debug` / `?debug=1` / `?debug=true`), the write helpers additionally validate:
 - 4-byte alignment requirements for `writeBuffer()` offsets and sizes
 - that each write stays within the expected GPUBuffer size (buffers are registered via `this._createBuffer()`)
 

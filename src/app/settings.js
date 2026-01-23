@@ -427,15 +427,32 @@ export async function copySettingsUrlToClipboard(dom, fallbacks) {
 }
 
 /**
- * Strip all query parameters from the address bar without reloading.
+ * Strip all query parameters from the address bar without reloading,
+ * except for a small allowlist of keys.
  *
- * Used after a one-time URL-driven initialization to avoid "sticky" settings URLs.
+ * Primary use-case: apply one-time Settings from the URL, then remove all
+ * Settings query parameters to avoid a "sticky" parametrized URL, while
+ * optionally preserving developer-oriented flags such as `debug`.
+ *
+ * @param {string[]} [preserveKeys]
  */
-export function stripAllQueryParamsFromAddressBar() {
+export function stripAllQueryParamsFromAddressBarExcept(preserveKeys = []) {
   try {
     const u = new URL(window.location.href);
-    u.search = "";
-    history.replaceState(null, "", u.pathname + u.hash);
+    const oldParams = new URLSearchParams(u.search);
+    const newParams = new URLSearchParams();
+
+    for (const k of preserveKeys) {
+      if (!k) continue;
+      const values = oldParams.getAll(k);
+      for (const v of values) newParams.append(k, v);
+      // If the key exists but has no values, preserve it as an empty entry.
+      if (values.length === 0 && oldParams.has(k)) newParams.append(k, "");
+    }
+
+    const qs = newParams.toString();
+    // Keep the existing hash fragment intact.
+    history.replaceState(null, "", u.pathname + (qs ? "?" + qs : "") + u.hash);
   } catch (_) {
     // ignore
   }

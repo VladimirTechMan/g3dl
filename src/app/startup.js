@@ -14,27 +14,15 @@
 import {
   hasKnownSettingsParams,
   applySettingsFromUrl,
-  stripAllQueryParamsFromAddressBar,
+  stripAllQueryParamsFromAddressBarExcept,
 } from "./settings.js";
+
+import { isDebugEnabled } from "../util/debug.js";
 
 import { createGridSizeController } from "./gridSizeUi.js";
 import { createDensityController } from "./densityUi.js";
 import { createRendererSettingsHandlers } from "./rendererSettingsUi.js";
 import { createRulesController } from "./rulesUi.js";
-
-/**
- * Returns true if the current URL enables debug UI.
- *
- * We treat this separately from Settings params: debug should not be stripped
- * from the address bar after restoring settings.
- */
-function isDebugEnabledFromUrl(search = window.location.search) {
-  const params = new URLSearchParams(search);
-  const v = params.get("debug");
-  if (v == null) return false;
-  const s = String(v).trim().toLowerCase();
-  return s === "1" || s === "true" || s === "yes" || s === "on";
-}
 
 /**
  * @typedef {import("../ui/dom.js").DomCache} DomCache
@@ -149,9 +137,8 @@ export async function runStartupSequence(deps) {
   // Keep the Gen0 edge input's HTML constraint in sync with the actual grid limit.
   if (initSizeInput) initSizeInput.max = String(maxGrid);
 
-  // Debug UI is enabled via URL (e.g., ?debug=1). This is intentionally not
-  // considered a "Settings" param because developers may want it to persist.
-  const debugEnabled = isDebugEnabledFromUrl();
+  // Debug UI is enabled via URL (e.g., ?debug or ?debug=1).
+  const debugEnabled = isDebugEnabled();
   if (debugEnabled && dom.selfTestGroup) {
     dom.selfTestGroup.hidden = false;
   }
@@ -311,8 +298,11 @@ export async function runStartupSequence(deps) {
 
   // If the page was opened with Settings in the URL, apply them once and then
   // clean the address bar to avoid a "sticky" parametrized URL.
-  if (urlHadSettingsParams && !debugEnabled) {
-    stripAllQueryParamsFromAddressBar();
+  //
+  // In debug mode, preserve only the `debug` flag so developers can keep it on
+  // while still avoiding sticky Settings parameters.
+  if (urlHadSettingsParams) {
+    stripAllQueryParamsFromAddressBarExcept(debugEnabled ? ["debug"] : []);
   }
 
   // Kick the first frame.
