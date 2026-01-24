@@ -40,7 +40,12 @@ import { createRulesController } from "./rulesUi.js";
  * @property {() => void} updateStats
  * @property {() => void} clearStickyError
  * @property {() => void} refreshSpeedFromSlider
- * @property {() => void} installUiBindings
+ * @property {(controllers: {
+ *   gridSizeUi: any,
+ *   densityUi: any,
+ *   rendererSettingsUi: any,
+ *   rulesUi: any,
+ * }) => void} installUiBindings
  * @property {(reason: any) => void} showNotSupportedMessage
  * @property {{ show: (o: { kind: "info"|"warn"|"error"|"success", message: string }) => void }} toast
  * @property {any} uiMsg
@@ -218,7 +223,7 @@ export async function runStartupSequence(deps) {
   });
 
   // Install event listeners once controllers exist.
-  installUiBindings();
+  installUiBindings({ gridSizeUi, densityUi, rendererSettingsUi, rulesUi });
 
   // Apply Settings values that do not have dedicated init paths.
   // (Important for URL-restored colors/rules.)

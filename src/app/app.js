@@ -712,9 +712,25 @@ function showNotSupportedMessage(reason) {
 }
 
 /**
- * Set up all event listeners
+ * @typedef {Object} UiControllers
+ * @property {any} gridSizeUi
+ * @property {any} densityUi
+ * @property {any} rendererSettingsUi
+ * @property {any} rulesUi
  */
-function installUiBindings() {
+
+/**
+ * Set up all event listeners.
+ *
+ * This is called once, after cohesive UI controllers exist. We build the
+ * bindUI() handler table here (using closures over controllers) to avoid
+ * scattering thin delegator functions throughout app.js.
+ *
+ * @param {UiControllers} controllers
+ */
+function installUiBindings(controllers) {
+  const { gridSizeUi, densityUi, rendererSettingsUi, rulesUi } = controllers;
+
   uiBindings = bindUI(dom, {
     step,
     togglePlay,
@@ -722,30 +738,39 @@ function installUiBindings() {
     toggleFullscreen: fullscreen.toggleFullscreen,
     handleSpeedPreview,
     handleSpeedChange,
-    handleSizeChange,
-    validateSizeInput,
-    handleSizeKeydown,
-    handleInitSizeChange,
-    validateInitSizeInput,
-    handleInitSizeKeydown,
-    handleDensityPreview,
-    handleDensityChange,
-    handleDensityPointerDown,
-    handleDensityPointerUpGlobal,
-    handleDensityBlur,
-    handleDensityMouseLeave,
-    handleCellColorChange,
-    handleBgColorChange,
-    handlePresetChange,
-    handleRuleInputChange,
-    handleRuleKeydown,
-    handleHazePreview,
-    handleHazeChange,
-    handleLanternChange,
-    handleScreenShowChange,
-    handleGridProjectionChange,
-    handleToroidalChange,
-    handleStableStopChange,
+
+    // Grid size + Gen0 init-size controls
+    handleSizeChange: () => gridSizeUi.handleSizeChange(),
+    validateSizeInput: () => gridSizeUi.validateSizeInput(),
+    handleSizeKeydown: (e) => gridSizeUi.handleSizeKeydown(e),
+    handleInitSizeChange: () => gridSizeUi.handleInitSizeChange(),
+    validateInitSizeInput: () => gridSizeUi.validateInitSizeInput(),
+    handleInitSizeKeydown: (e) => gridSizeUi.handleInitSizeKeydown(e),
+
+    // Density (Gen0 fill)
+    handleDensityPreview: () => densityUi.handleDensityPreview(),
+    handleDensityChange: () => densityUi.handleDensityChange(),
+    handleDensityPointerDown: (e) => densityUi.handleDensityPointerDown(e),
+    handleDensityPointerUpGlobal: () => densityUi.handleDensityPointerUpGlobal(),
+    handleDensityBlur: () => densityUi.handleDensityBlur(),
+    handleDensityMouseLeave: () => densityUi.handleDensityMouseLeave(),
+
+    // Renderer/visual settings
+    handleCellColorChange: () => rendererSettingsUi.handleCellColorChange(),
+    handleBgColorChange: () => rendererSettingsUi.handleBgColorChange(),
+    handleHazePreview: () => rendererSettingsUi.handleHazePreview(),
+    handleHazeChange: () => rendererSettingsUi.handleHazeChange(),
+    handleLanternChange: () => rendererSettingsUi.handleLanternChange(),
+    handleScreenShowChange: () => rendererSettingsUi.handleScreenShowChange(),
+    handleGridProjectionChange: () => rendererSettingsUi.handleGridProjectionChange(),
+    handleToroidalChange: () => rendererSettingsUi.handleToroidalChange(),
+    handleStableStopChange: () => rendererSettingsUi.handleStableStopChange(),
+
+    // Rules
+    handlePresetChange: () => rulesUi.handlePresetChange(),
+    handleRuleInputChange: (e) => rulesUi.handleRuleInputChange(e),
+    handleRuleKeydown: (e) => rulesUi.handleRuleKeydown(e),
+
     handleCopyUrlButton,
     handleSelfTestButton,
     handleKeyDown,
@@ -856,24 +881,6 @@ async function handleSelfTestButton() {
 }
 
 /**
- * Rules UI handlers.
- *
- * The actual validation/parsing/preset matching logic is implemented in rulesUi.js
- * for better module cohesion. These thin wrappers preserve the bindUI() contract.
- */
-function handlePresetChange() {
-  rulesUi?.handlePresetChange?.();
-}
-
-function handleRuleInputChange(e) {
-  rulesUi?.handleRuleInputChange?.(e);
-}
-
-function handleRuleKeydown(e) {
-  rulesUi?.handleRuleKeydown?.(e);
-}
-
-/**
  * Advance one state.sim.generation
  */
 async function step() {
@@ -926,140 +933,6 @@ function handleSpeedChange() {
   // If we're currently waiting for the next tick (timer pending), reschedule it.
   // If a step is in-flight, the new state.settings.speed will apply on the next scheduled tick.
   if (loop) loop.rescheduleNextTick();
-}
-
-/**
- * Handle grid size input change (delegated to the grid-size controller).
- */
-async function handleSizeChange() {
-  if (!gridSizeUi) return;
-  return await gridSizeUi.handleSizeChange();
-}
-
-/**
- * Validate size input (delegated).
- */
-function validateSizeInput() {
-  if (!gridSizeUi) return;
-  gridSizeUi.validateSizeInput();
-}
-
-/**
- * Handle Enter key on grid size input (delegated).
- */
-function handleSizeKeydown(e) {
-  if (!gridSizeUi) return;
-  gridSizeUi.handleSizeKeydown(e);
-}
-
-/**
- * Handle initial size input change (delegated).
- */
-async function handleInitSizeChange() {
-  if (!gridSizeUi) return;
-  return await gridSizeUi.handleInitSizeChange();
-}
-
-/**
- * Validate init size input (delegated).
- */
-function validateInitSizeInput() {
-  if (!gridSizeUi) return;
-  gridSizeUi.validateInitSizeInput();
-}
-
-/**
- * Handle Enter key on initial size input (delegated).
- */
-function handleInitSizeKeydown(e) {
-  if (!gridSizeUi) return;
-  gridSizeUi.handleInitSizeKeydown(e);
-}
-
-/**
- * Density (Gen0) handlers are delegated to a dedicated controller.
- */
-function handleDensityPreview() {
-  if (!densityUi) return;
-  densityUi.handleDensityPreview();
-}
-
-async function handleDensityChange() {
-  if (!densityUi) return;
-  return await densityUi.handleDensityChange();
-}
-
-function handleDensityPointerDown(e) {
-  if (!densityUi) return;
-  densityUi.handleDensityPointerDown(e);
-}
-
-function handleDensityPointerUpGlobal() {
-  if (!densityUi) return;
-  densityUi.handleDensityPointerUpGlobal();
-}
-
-function handleDensityBlur() {
-  if (!densityUi) return;
-  densityUi.handleDensityBlur();
-}
-
-function handleDensityMouseLeave() {
-  if (!densityUi) return;
-  densityUi.handleDensityMouseLeave();
-}
-
-/**
- * Renderer setting handlers (delegated).
- */
-function handleCellColorChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleCellColorChange();
-}
-
-function handleBgColorChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleBgColorChange();
-}
-
-/**
- * Haze is a purely visual effect.
- *
- * We apply it immediately while the user drags the slider (no tooltip).
- */
-function handleHazePreview() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleHazePreview();
-}
-
-function handleHazeChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleHazeChange();
-}
-
-function handleLanternChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleLanternChange();
-}
-
-function handleScreenShowChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleScreenShowChange();
-}
-
-function handleGridProjectionChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleGridProjectionChange();
-}
-
-function handleToroidalChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleToroidalChange();
-}
-
-function handleStableStopChange() {
-  if (!rendererSettingsUi) return;
-  rendererSettingsUi.handleStableStopChange();
 }
 
 /**
