@@ -135,31 +135,49 @@ async function handleCopyUrlButton() {
 
 
 /**
- * Coalesced resize/orientation work scheduler.
+ * App ctx (mutable) state.
  *
- * Initialized after requestRender() is defined (so we can inject it).
+ * This keeps cross-cutting controllers/resources in one place so the module
+ * does not rely on a large set of unrelated top-level `let` bindings.
+ *
+ * Note: We intentionally mutate fields on this object (rather than rebinding)
+ * to keep dependency closures stable.
  */
-let scheduleResizeWork = () => {};
-let cancelResizeWork = () => {};
+const ctx = {
+  /**
+   * Coalesced resize/orientation work scheduler.
+   *
+   * Initialized after requestRender() is defined (so we can inject it).
+   */
+  scheduleResizeWork: () => {},
+  cancelResizeWork: () => {},
 
-// State
-let renderer = null;
-let loop = null;
-let orbitControls = null;
-let screenShow = null;
+  // Core ctx controllers/resources (created during init()).
+  renderer: null,
+  loop: null,
+  orbitControls: null,
+  screenShow: null,
 
-// Simulation controller: step/run/reset + sticky error policy.
-let simControl = null;
+  // Simulation controller: step/run/reset + sticky error policy.
+  simControl: null,
 
-// UI controllers that encapsulate cohesive handler logic.
-let gridSizeUi = null;
-let densityUi = null;
-let rendererSettingsUi = null;
-let rulesUi = null;
+  // UI controllers that encapsulate cohesive handler logic.
+  ui: {
+    gridSizeUi: null,
+    densityUi: null,
+    rendererSettingsUi: null,
+    rulesUi: null,
+  },
 
-// UI bindings are installed once during init(); kept here so destroyApp() can tear them down.
-let uiBindings = null;
-let appDestroyed = false;
+  // UI bindings are installed once during init(); kept so destroyApp() can tear them down.
+  uiBindings: null,
+
+  // Injected by bindUI(); no-op until listeners are installed.
+  // Used for auto-closing Settings/Help when starting a run or stepping.
+  closeSettingsAndHelpPanels: () => {},
+
+  destroyed: false,
+};
 
 /**
  * Tear down global listeners and stop any scheduled work.
@@ -168,8 +186,8 @@ let appDestroyed = false;
  * cleanup on page unload. It is safe to call multiple times.
  */
 function destroyApp(_reason = "") {
-  if (appDestroyed) return;
-  appDestroyed = true;
+  if (ctx.destroyed) return;
+  ctx.destroyed = true;
 
   // Stop global listeners first to prevent late resize/interaction events from
   // racing with teardown logic.
@@ -187,7 +205,7 @@ function destroyApp(_reason = "") {
 
   // Cancel any coalesced resize/layout work that has not run yet.
   try {
-    cancelResizeWork();
+    ctx.cancelResizeWork();
   } catch (_) {
     // ignore
   }
@@ -201,51 +219,51 @@ function destroyApp(_reason = "") {
 
   try {
     // Stop autopilot and clear any pending fade timers.
-    if (screenShow) screenShow.stop(true);
+    if (ctx.screenShow) ctx.screenShow.stop(true);
   } catch (_) {
     // ignore
   }
 
   try {
-    if (loop && typeof loop.destroy === "function") loop.destroy();
-    else if (loop) loop.stopPlaying();
+    if (ctx.loop && typeof ctx.loop.destroy === "function") ctx.loop.destroy();
+    else if (ctx.loop) ctx.loop.stopPlaying();
   } catch (_) {
     // ignore
   }
 
   try {
-    if (orbitControls) orbitControls.destroy();
+    if (ctx.orbitControls) ctx.orbitControls.destroy();
   } catch (_) {
     // ignore
   }
 
   try {
-    if (uiBindings && typeof uiBindings.destroy === "function") uiBindings.destroy();
+    if (ctx.uiBindings && typeof ctx.uiBindings.destroy === "function") ctx.uiBindings.destroy();
   } catch (_) {
     // ignore
   }
 
   try {
-    if (densityUi && typeof densityUi.destroy === "function") densityUi.destroy();
+    if (ctx.ui.densityUi && typeof ctx.ui.densityUi.destroy === "function") ctx.ui.densityUi.destroy();
   } catch (_) {
     // ignore
   }
 
   try {
-    if (renderer && typeof renderer.destroy === "function") renderer.destroy();
+    if (ctx.renderer && typeof ctx.renderer.destroy === "function") ctx.renderer.destroy();
   } catch (_) {
     // ignore
   }
 
-  renderer = null;
-  loop = null;
-  orbitControls = null;
-  screenShow = null;
-  gridSizeUi = null;
-  densityUi = null;
-  rendererSettingsUi = null;
-  rulesUi = null;
-  uiBindings = null;
+  ctx.renderer = null;
+  ctx.loop = null;
+  ctx.orbitControls = null;
+  ctx.screenShow = null;
+  ctx.ui.gridSizeUi = null;
+  ctx.ui.densityUi = null;
+  ctx.ui.rendererSettingsUi = null;
+  ctx.ui.rulesUi = null;
+  ctx.uiBindings = null;
 }
 
 // Defensive cleanup on navigation away.
@@ -253,7 +271,7 @@ window.addEventListener(
   "pagehide",
   (e) => {
     // If the page is being placed into the back/forward cache (bfcache), avoid tearing
-    // down but suspend GPU work. The runtime will resume with listeners intact when restored.
+    // down but suspend GPU work. The ctx will resume with listeners intact when restored.
     if (e && e.persisted) {
       suspendForBackground("pagehide-bfcache");
       return;
@@ -307,18 +325,18 @@ function suspendForBackground(reason = "") {
   _visSuspended = true;
 
   // Snapshot play state before stopping it.
-  _wasPlayingBeforeVisSuspend = !!(loop && loop.isPlaying);
+  _wasPlayingBeforeVisSuspend = !!(ctx.loop && ctx.loop.isPlaying);
 
   try {
     // Freeze the visualization timebase so lantern flicker does not jump when returning.
-    if (renderer && typeof renderer.pauseTimebase === "function") renderer.pauseTimebase();
+    if (ctx.renderer && typeof ctx.renderer.pauseTimebase === "function") ctx.renderer.pauseTimebase();
   } catch (_) {
     // ignore
   }
 
   try {
     // Cancel active gestures immediately to avoid stuck pointer states after backgrounding.
-    orbitControls?.cancelInteraction?.();
+    ctx.orbitControls?.cancelInteraction?.();
   } catch (_) {
     // ignore
   }
@@ -327,15 +345,15 @@ function suspendForBackground(reason = "") {
   // no background timers keep firing while hidden. Unlike a user-initiated pause,
   // we preserve the current pass so Screen show can resume exactly where it stopped.
   try {
-    screenShow?.pauseTimebase?.();
+    ctx.screenShow?.pauseTimebase?.();
   } catch (_) {
     // ignore
   }
 
   try {
     // Stop play ticks and animation-driven rendering.
-    if (loop && typeof loop.setSuspended === "function") loop.setSuspended(true);
-    else loop?.stopPlaying?.();
+    if (ctx.loop && typeof ctx.loop.setSuspended === "function") ctx.loop.setSuspended(true);
+    else ctx.loop?.stopPlaying?.();
   } catch (_) {
     // ignore
   }
@@ -355,19 +373,19 @@ function resumeFromBackground(reason = "") {
   _visSuspended = false;
 
   try {
-    if (renderer && typeof renderer.resumeTimebase === "function") renderer.resumeTimebase();
+    if (ctx.renderer && typeof ctx.renderer.resumeTimebase === "function") ctx.renderer.resumeTimebase();
   } catch (_) {
     // ignore
   }
 
   try {
-    screenShow?.resumeTimebase?.();
+    ctx.screenShow?.resumeTimebase?.();
   } catch (_) {
     // ignore
   }
 
   try {
-    if (loop && typeof loop.setSuspended === "function") loop.setSuspended(false);
+    if (ctx.loop && typeof ctx.loop.setSuspended === "function") ctx.loop.setSuspended(false);
   } catch (_) {
     // ignore
   }
@@ -379,8 +397,8 @@ function resumeFromBackground(reason = "") {
   const shouldResumePlay = _wasPlayingBeforeVisSuspend;
   _wasPlayingBeforeVisSuspend = false;
 
-  if (shouldResumePlay && loop && !loop.isPlaying) {
-    loop.startPlaying();
+  if (shouldResumePlay && ctx.loop && !ctx.loop.isPlaying) {
+    ctx.loop.startPlaying();
   }
 
   void reason;
@@ -428,13 +446,10 @@ const statsUi = createStatsController({
   scheduleStatsViewportPin,
 });
 
-// Injected by bindUI(); no-op until listeners are installed.
-// Used for auto-closing Settings/Help when starting a run or stepping.
-let closeSettingsAndHelpPanels = () => {};
 
 function requestRender(immediate = false) {
-  if (!loop) return;
-  loop.requestRender(immediate);
+  if (!ctx.loop) return;
+  ctx.loop.requestRender(immediate);
 }
 
 // Initialize the coalesced resize/orientation scheduler once requestRender() exists.
@@ -442,21 +457,21 @@ function requestRender(immediate = false) {
   const sched = createResizeWorkScheduler({
     headerEl: header || null,
     scheduleStatsViewportPin,
-    getLoop: () => loop,
+    getLoop: () => ctx.loop,
     requestRender,
   });
-  scheduleResizeWork = sched.schedule;
-  cancelResizeWork = sched.cancel;
+  ctx.scheduleResizeWork = sched.schedule;
+  ctx.cancelResizeWork = sched.cancel;
 }
 
 // Create the simulation controller early so loop hooks can surface errors even
 // during initialization.
-simControl = createSimController({
+ctx.simControl = createSimController({
   state,
-  getRenderer: () => renderer,
-  getLoop: () => loop,
-  getScreenShow: () => screenShow,
-  closeSettingsAndHelpPanels: () => closeSettingsAndHelpPanels(),
+  getRenderer: () => ctx.renderer,
+  getLoop: () => ctx.loop,
+  getScreenShow: () => ctx.screenShow,
+  closeSettingsAndHelpPanels: () => ctx.closeSettingsAndHelpPanels(),
   clearStickyError,
   requestRender,
   updateStats,
@@ -474,12 +489,12 @@ simControl = createSimController({
 // Global hotkeys (space: run/pause; s: step; r: reset; f: fullscreen; c/b: camera reset).
 const handleKeyDown = createKeyDownHandler({
   settingsPanel: settingsPanel || null,
-  getScreenShowNavLocked: () => (screenShow ? screenShow.isNavLocked() : false),
+  getScreenShowNavLocked: () => (ctx.screenShow ? ctx.screenShow.isNavLocked() : false),
   togglePlay,
   step,
   reset,
   toggleFullscreen: fullscreen.toggleFullscreen,
-  getRenderer: () => renderer,
+  getRenderer: () => ctx.renderer,
   requestRender,
 });
 
@@ -490,7 +505,7 @@ const handleKeyDown = createKeyDownHandler({
  * via the loop's onPlayStateChanged hook.
  */
 function stopPlaying() {
-  simControl?.stopPlaying?.();
+  ctx.simControl?.stopPlaying?.();
 }
 
 /**
@@ -508,7 +523,7 @@ function disableScreenShowDueToEmpty() {
   // Keep the checkbox in sync without relying on firing a DOM change event.
   if (screenShowCheckbox) screenShowCheckbox.checked = false;
 
-  if (screenShow) screenShow.setEnabled(false);
+  if (ctx.screenShow) ctx.screenShow.setEnabled(false);
 
   requestRender(true);
 }
@@ -517,8 +532,8 @@ function disableScreenShowDueToEmpty() {
  * Wait until all queued GPU steps finish (if any).
  */
 async function waitForIdle() {
-  if (!simControl) return;
-  await simControl.waitForIdle();
+  if (!ctx.simControl) return;
+  await ctx.simControl.waitForIdle();
 }
 
 /**
@@ -526,15 +541,15 @@ async function waitForIdle() {
  * Returns the renderer's "changed" value for that step.
  */
 function queueStep(syncStats = true) {
-  if (!simControl) return Promise.resolve(true);
-  return simControl.queueStep(syncStats);
+  if (!ctx.simControl) return Promise.resolve(true);
+  return ctx.simControl.queueStep(syncStats);
 }
 
 /**
  * Surface a fatal simulation step failure to the user.
  *
  * This should be rare. If it occurs, the most likely causes are:
- * - a WebGPU runtime/device problem (e.g., memory pressure), or
+ * - a WebGPU ctx/device problem (e.g., memory pressure), or
  * - a cross-browser shader/validation issue.
  *
  * The loop controller already stops play mode on step failures.
@@ -543,7 +558,7 @@ function queueStep(syncStats = true) {
  * @param {any} err
  */
 function handleStepError(err) {
-  simControl?.handleStepError?.(err);
+  ctx.simControl?.handleStepError?.(err);
 }
 
 // Input (pointer/touch/mouse) state is managed by OrbitControls.
@@ -572,22 +587,22 @@ async function init() {
   }
 
   try {
-    renderer = new WebGPURenderer(canvas);
+    ctx.renderer = new WebGPURenderer(canvas);
     // Fail fast if a refactor accidentally removed/renamed required methods.
-    assertRendererApi(renderer);
-    await renderer.init();
+    assertRendererApi(ctx.renderer);
+    await ctx.renderer.init();
     debugLog("WebGPU renderer initialized successfully");
 
     // Main loop controller: owns scheduling of steps and rendering.
-    loop = new LoopController({
-      renderer,
+    ctx.loop = new LoopController({
+      renderer: ctx.renderer,
       hooks: createLoopHooks({
         state,
         playIcon: playIcon || null,
         pauseIcon: pauseIcon || null,
-        getRenderer: () => renderer,
-        getOrbitControls: () => orbitControls,
-        getScreenShow: () => screenShow,
+        getRenderer: () => ctx.renderer,
+        getOrbitControls: () => ctx.orbitControls,
+        getScreenShow: () => ctx.screenShow,
         updateStats,
         stopPlaying,
         disableScreenShowDueToEmpty,
@@ -595,20 +610,20 @@ async function init() {
       }),
     });
     // Screen show controller (camera autopilot)
-    screenShow = new ScreenShowController({ state, renderer, canvas, requestRender });
+    ctx.screenShow = new ScreenShowController({ state, renderer: ctx.renderer, canvas, requestRender });
 
     // Camera input controller (pointer/touch/mouse + wheel)
-    orbitControls = new OrbitControls(canvas, renderer, {
+    ctx.orbitControls = new OrbitControls(canvas, ctx.renderer, {
       requestRender,
-      isNavLocked: () => isSelfTesting || (screenShow ? screenShow.isNavLocked() : false),
+      isNavLocked: () => isSelfTesting || (ctx.screenShow ? ctx.screenShow.isNavLocked() : false),
     });
 
-    if (screenShow) {
-      screenShow.setOrbitControls(orbitControls);
-      screenShow.updateNavLock();
+    if (ctx.screenShow) {
+      ctx.screenShow.setOrbitControls(ctx.orbitControls);
+      ctx.screenShow.updateNavLock();
     }
 
-    renderer.onDeviceLost = (info) => {
+    ctx.renderer.onDeviceLost = (info) => {
       stopPlaying();
       showNotSupportedMessage(
         "WebGPU device was lost (typically due to backgrounding or memory pressure). Please reload the page.",
@@ -623,10 +638,10 @@ async function init() {
   const startup = await runStartupSequence({
     dom,
     state,
-    renderer,
-    getScreenShow: () => screenShow,
+    renderer: ctx.renderer,
+    getScreenShow: () => ctx.screenShow,
     appSignal: APP_SIGNAL,
-    scheduleResizeWork,
+    scheduleResizeWork: ctx.scheduleResizeWork,
     requestRender,
     updateStats,
     clearStickyError,
@@ -645,10 +660,10 @@ async function init() {
 
   if (!startup) return;
 
-  gridSizeUi = startup.gridSizeUi;
-  densityUi = startup.densityUi;
-  rendererSettingsUi = startup.rendererSettingsUi;
-  rulesUi = startup.rulesUi;
+  ctx.ui.gridSizeUi = startup.gridSizeUi;
+  ctx.ui.densityUi = startup.densityUi;
+  ctx.ui.rendererSettingsUi = startup.rendererSettingsUi;
+  ctx.ui.rulesUi = startup.rulesUi;
 
   hideLoadingOverlay();
 }
@@ -731,7 +746,7 @@ function showNotSupportedMessage(reason) {
 function installUiBindings(controllers) {
   const { gridSizeUi, densityUi, rendererSettingsUi, rulesUi } = controllers;
 
-  uiBindings = bindUI(dom, {
+  ctx.uiBindings = bindUI(dom, {
     step,
     togglePlay,
     reset,
@@ -778,12 +793,12 @@ function installUiBindings(controllers) {
     // Allow wheel zoom even when the cursor is outside the canvas (e.g., over UI panels).
     routeWheelToScene: (e) => {
       e.preventDefault();
-      if (orbitControls) orbitControls.zoomFromWheelDelta(e.deltaY, true);
+      if (ctx.orbitControls) ctx.orbitControls.zoomFromWheelDelta(e.deltaY, true);
     },
   });
 
-  closeSettingsAndHelpPanels = uiBindings.closeSettingsAndHelpPanels;
-  return uiBindings;
+  ctx.closeSettingsAndHelpPanels = ctx.uiBindings.closeSettingsAndHelpPanels;
+  return ctx.uiBindings;
 }
 
 /**
@@ -797,7 +812,7 @@ async function handleSelfTestButton() {
   if (!selfTestBtn) return;
   if (selfTestGroup && selfTestGroup.hidden) return;
   if (isSelfTesting) return;
-  if (!renderer || !renderer.device) {
+  if (!ctx.renderer || !ctx.renderer.device) {
     toast.show({ kind: "error", message: "Self-test unavailable: WebGPU not initialized." });
     return;
   }
@@ -806,7 +821,7 @@ async function handleSelfTestButton() {
 
   const prevLabel = selfTestBtn.textContent;
   const prevDisabled = selfTestBtn.disabled;
-  const wasPlaying = !!loop?.isPlaying;
+  const wasPlaying = !!ctx.loop?.isPlaying;
 
   // Disable UI interactivity while testing (keep the UI responsive but prevent state changes).
   /** @type {Array<[HTMLButtonElement|HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement, boolean]>} */
@@ -835,23 +850,23 @@ async function handleSelfTestButton() {
 
   try {
     // Stop the main simulation loop to reduce GPU contention during tests.
-    simControl?.stopPlaying?.();
-    await simControl?.waitForIdle?.();
-    orbitControls?.cancelInteraction?.();
+    ctx.simControl?.stopPlaying?.();
+    await ctx.simControl?.waitForIdle?.();
+    ctx.orbitControls?.cancelInteraction?.();
 
     // Give the browser one frame to paint the updated button text.
     await yieldToUi();
 
     const { runSelfTestSuite } = await import("./selfTest/selfTestSuite.js");
     const result = await runSelfTestSuite({
-      device: renderer.device,
-      workgroupSize: renderer.workgroupSize,
+      device: ctx.renderer.device,
+      workgroupSize: ctx.renderer.workgroupSize,
       yieldToUi,
     });
 
     if (result.ok) {
       toast.show({ kind: "success", message: result.message || "Self-test passed." });
-      if (wasPlaying && loop && !loop.isPlaying) loop.startPlaying();
+      if (wasPlaying && ctx.loop && !ctx.loop.isPlaying) ctx.loop.startPlaying();
     } else {
       toast.show({ kind: "error", message: result.message || "Self-test failed." });
     }
@@ -884,15 +899,15 @@ async function handleSelfTestButton() {
  * Advance one state.sim.generation
  */
 async function step() {
-  if (!simControl) return;
-  await simControl.step();
+  if (!ctx.simControl) return;
+  await ctx.simControl.step();
 }
 
 /**
  * Toggle play/pause
  */
 function togglePlay() {
-  simControl?.togglePlay?.();
+  ctx.simControl?.togglePlay?.();
 }
 
 /**
@@ -905,8 +920,8 @@ function togglePlay() {
  * @returns {Promise<boolean>} true on success, false on failure
  */
 async function reset(opts = {}) {
-  if (!simControl) return false;
-  return await simControl.reset(opts);
+  if (!ctx.simControl) return false;
+  return await ctx.simControl.reset(opts);
 }
 
 /**
@@ -932,7 +947,7 @@ function handleSpeedChange() {
 
   // If we're currently waiting for the next tick (timer pending), reschedule it.
   // If a step is in-flight, the new state.settings.speed will apply on the next scheduled tick.
-  if (loop) loop.rescheduleNextTick();
+  if (ctx.loop) ctx.loop.rescheduleNextTick();
 }
 
 /**
