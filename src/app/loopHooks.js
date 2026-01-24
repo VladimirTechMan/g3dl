@@ -80,8 +80,8 @@ export function createLoopHooks(deps) {
     onPlayStateChanged: (playing) => {
       state.sim.isPlaying = playing;
 
-      if (playIcon) playIcon.hidden = playing;
-      if (pauseIcon) pauseIcon.hidden = !playing;
+      if (playIcon) playIcon.classList.toggle("hidden", playing);
+      if (pauseIcon) pauseIcon.classList.toggle("hidden", !playing);
 
       document.body.classList.toggle("playing", playing);
 

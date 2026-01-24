@@ -810,7 +810,7 @@ function installUiBindings(controllers) {
 async function handleSelfTestButton() {
   // The button exists in the DOM but is hidden unless debug mode is enabled via the URL (e.g., ?debug or ?debug=1).
   if (!selfTestBtn) return;
-  if (selfTestGroup && selfTestGroup.hidden) return;
+  if (selfTestGroup && selfTestGroup.classList.contains("hidden")) return;
   if (isSelfTesting) return;
   if (!ctx.renderer || !ctx.renderer.device) {
     toast.show({ kind: "error", message: "Self-test unavailable: WebGPU not initialized." });

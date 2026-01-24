@@ -64,9 +64,9 @@
               </svg>
               <svg
                 id="pauseIcon"
+                class="hidden"
                 viewBox="0 0 24 24"
-                fill="currentColor"
-                hidden>
+                fill="currentColor">
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
               </svg>
             </button>
@@ -101,9 +101,9 @@
               </svg>
               <svg
                 id="fullscreenExitIcon"
+                class="hidden"
                 viewBox="0 0 24 24"
-                fill="currentColor"
-                hidden>
+                fill="currentColor">
                 <path
                   d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
                 />
@@ -469,7 +469,7 @@
               This control is only shown when debug mode is enabled via the URL (e.g., ?debug or ?debug=1).
               The self-test code is loaded on-demand via dynamic import.
             -->
-            <div id="selfTestGroup" class="control-group copy-url-group" hidden>
+            <div id="selfTestGroup" class="control-group copy-url-group hidden">
               <button id="selfTestBtn" class="copy-url-btn" type="button">
                 Self-test
               </button>
@@ -492,8 +492,7 @@
 
         <div
           id="toast"
-          class="toast glass-chrome"
-          hidden
+          class="toast glass-chrome hidden"
           role="status"
           aria-live="polite"
           aria-atomic="true"

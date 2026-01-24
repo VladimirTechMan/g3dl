@@ -79,7 +79,7 @@ export function createToastController(dom, opts = {}) {
     currentKind = null;
     currentMessage = "";
     if (!el || !msgEl) return;
-    el.hidden = true;
+    el.classList.add("hidden");
     el.removeAttribute("data-kind");
     // Keep aria-live polite by default.
     el.setAttribute("aria-live", "polite");
@@ -119,7 +119,7 @@ export function createToastController(dom, opts = {}) {
     lastShownAtMs = t;
 
     // If the same toast is already visible, just extend its lifetime.
-    if (!el.hidden && currentKind === kind && currentMessage === message) {
+    if (!el.classList.contains("hidden") && currentKind === kind && currentMessage === message) {
       clearTimer();
       if (kind !== "error" && autoHideMs > 0) {
         hideTimer = setTimeout(hide, autoHideMs);
@@ -133,7 +133,7 @@ export function createToastController(dom, opts = {}) {
     clearTimer();
 
     el.dataset.kind = kind;
-    el.hidden = false;
+    el.classList.remove("hidden");
     el.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
     msgEl.textContent = message;
 
@@ -162,7 +162,7 @@ export function createToastController(dom, opts = {}) {
 
   function getState() {
     return {
-      visible: !!el && !el.hidden,
+      visible: !!el && !el.classList.contains("hidden"),
       kind: currentKind,
       message: currentMessage,
     };

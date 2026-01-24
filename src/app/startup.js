@@ -131,7 +131,7 @@ export async function runStartupSequence(deps) {
   // Debug UI is enabled via URL (e.g., ?debug or ?debug=1).
   const debugEnabled = isDebugEnabled();
   if (debugEnabled && dom.selfTestGroup) {
-    dom.selfTestGroup.hidden = false;
+    dom.selfTestGroup.classList.remove("hidden");
   }
 
   const urlHadSettingsParams = hasKnownSettingsParams();

@@ -43,8 +43,8 @@ export function createFullscreenController(cfg) {
 
   function updateIcons() {
     const fs = !!getFullscreenElement();
-    enterIcon.hidden = fs;
-    exitIcon.hidden = !fs;
+    enterIcon.classList.toggle("hidden", fs);
+    exitIcon.classList.toggle("hidden", !fs);
   }
 
   function requestFullscreen(el) {
