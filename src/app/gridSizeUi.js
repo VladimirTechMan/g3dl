@@ -4,8 +4,8 @@
  * Responsibilities:
  * - validate + clamp grid size to device limits
  * - validate + clamp Gen0 init cube edge length
- * - apply changes immediately when simulation is stopped
- * - store changes (without applying) when simulation is running
+ * - apply Gen0 init-size changes immediately only when the simulation is stopped at generation 0
+ * - otherwise store changes and apply them on the next explicit reset (or when grid size is changed while stopped)
  *
  * This module is intentionally deterministic and does not register any event listeners.
  */
@@ -221,11 +221,13 @@ export function createGridSizeController(deps) {
       });
     }
 
-    // Only apply immediately when simulation is not running.
-    if (state.sim.isPlaying) {
+    // Apply immediately only when the simulation is stopped at generation 0.
+    // If the user has already advanced the simulation (even if paused), changing Gen0
+    // settings should not discard the current state; it should take effect on the next reset.
+    if (state.sim.isPlaying || state.sim.generation !== 0) {
       toast.show({
         kind: "info",
-        message: uiMsg.sim.stopToApply.initSize,
+        message: uiMsg.sim.applyOnNextReset.initSize,
       });
       return;
     }

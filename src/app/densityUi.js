@@ -16,7 +16,7 @@
  * @property {HTMLElement | null} densityTip
  * @property {{
  *   settings: { density: number },
- *   sim: { isPlaying: boolean },
+ *   sim: { isPlaying: boolean, generation: number },
  * }} state
  * @property {{
  *   show: (args: { kind: "info" | "warn" | "error" | "success", message: string }) => void,
@@ -89,11 +89,12 @@ export function createDensityController(deps) {
 
     scheduleDensityTipHide(1000);
 
-    // Only apply density when simulation is not running.
-    if (state.sim.isPlaying) {
+    // Apply immediately only when the simulation is stopped at generation 0.
+    // Otherwise, keep the new setting and apply it on the next explicit reset.
+    if (state.sim.isPlaying || state.sim.generation !== 0) {
       toast.show({
         kind: "info",
-        message: uiMsg.sim.stopToApply.density,
+        message: uiMsg.sim.applyOnNextReset.density,
       });
       return;
     }

@@ -19,8 +19,13 @@ export const UI_MSG = {
 
     stopToApply: {
       gridSize: "Stop the simulation to apply grid size changes.",
-      initSize: "Stop the simulation to apply initial size changes.",
-      density: "Stop the simulation to apply Gen0 density changes.",
+    },
+
+    applyOnNextReset: {
+      initSize:
+        "Initial size will be used the next time you reset (or change Grid edge while stopped).",
+      density:
+        "Gen0 density will be used the next time you reset (or change Grid edge while stopped).",
     },
 
     recoverFailed: "Unable to recover after a GPU allocation error. Reload the page.",
