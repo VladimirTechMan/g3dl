@@ -37,6 +37,10 @@ import { createPanelManager } from "./panels.js";
  * @property {(e: KeyboardEvent) => void} handleRuleKeydown
  * @property {(e?: Event) => void} handleHazePreview
  * @property {(e?: Event) => void} handleHazeChange
+ * @property {(e?: PointerEvent) => void} [handleHazePointerDown]
+ * @property {(e?: PointerEvent) => void} [handleHazePointerUpGlobal]
+ * @property {(e?: FocusEvent) => void} [handleHazeBlur]
+ * @property {(e?: MouseEvent) => void} [handleHazeMouseLeave]
  * @property {(e?: Event) => void} handleLanternChange
  * @property {(e?: Event) => void} handleScreenShowChange
  * @property {(e?: Event) => void} handleGridProjectionChange

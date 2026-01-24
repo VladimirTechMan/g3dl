@@ -49,6 +49,27 @@ export function bindControls(dom, handlers) {
   add(d.hazeSlider, "input", handlers.handleHazePreview);
   add(d.hazeSlider, "change", handlers.handleHazeChange);
 
+  // Throttle visual slider updates during pointer drags to keep the UI responsive
+  // on mobile devices. The handler is optional so platforms that do not need
+  // special handling can keep the simple input/change path.
+  if (handlers.handleHazePointerDown) {
+    add(d.hazeSlider, "pointerdown", handlers.handleHazePointerDown);
+  }
+  if (handlers.handleHazePointerUpGlobal) {
+    add(window, "pointerup", handlers.handleHazePointerUpGlobal, {
+      passive: true,
+    });
+    add(window, "pointercancel", handlers.handleHazePointerUpGlobal, {
+      passive: true,
+    });
+  }
+  if (handlers.handleHazeBlur) {
+    add(d.hazeSlider, "blur", handlers.handleHazeBlur);
+  }
+  if (handlers.handleHazeMouseLeave) {
+    add(d.hazeSlider, "mouseleave", handlers.handleHazeMouseLeave);
+  }
+
   // Ensure the density tooltip cannot get "stuck" visible if the pointer is released
   // outside the slider (some browsers do not always dispatch a 'change' in that case).
   if (handlers.handleDensityPointerDown) {

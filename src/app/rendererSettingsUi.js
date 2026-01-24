@@ -1,3 +1,5 @@
+import { createThrottledControl } from "../ui/throttledControl.js";
+
 /**
  * Small renderer-setting handlers.
  *
@@ -42,6 +44,61 @@ export function createRendererSettingsHandlers(deps) {
     gridProjectionCheckbox,
   } = deps;
 
+  // Haze slider throttling.
+  // On some mobile browsers, rapid 'input' events can generate a high volume of
+  // WebGPU queue writes + render invalidations. Haze is purely visual, so we can
+  // safely coalesce updates during pointer drags.
+  function clampHazeStrengthFromSlider() {
+    if (!hazeSlider) return 0.0;
+    const pct = parseInt(hazeSlider.value, 10);
+    const clampedPct = Number.isFinite(pct) ? Math.max(0, Math.min(30, pct)) : 0;
+    return clampedPct * 0.01;
+  }
+
+  function applyHazeStrength(strength) {
+    const renderer = getRenderer();
+    if (!renderer) return;
+    renderer.setHazeStrength?.(strength);
+    requestRender();
+  }
+
+  const hazeControl = createThrottledControl({
+    getValue: clampHazeStrengthFromSlider,
+    applyPreview: applyHazeStrength,
+    // Haze is purely visual, so commit == preview.
+    applyCommit: applyHazeStrength,
+    // ~30Hz during pointer drags.
+    previewIntervalMs: 33,
+    // Suppress duplicate commit events (pointerup-global + native 'change').
+    commitSuppressMs: 250,
+    captureTarget: hazeSlider,
+    commitOnMouseLeave: false,
+  });
+
+  function handleHazePreview() {
+    hazeControl.preview();
+  }
+
+  function handleHazeChange() {
+    hazeControl.commit();
+  }
+
+  function handleHazePointerDown(e) {
+    hazeControl.onPointerDown(e);
+  }
+
+  function handleHazePointerUpGlobal() {
+    hazeControl.onPointerUpGlobal();
+  }
+
+  function handleHazeBlur() {
+    hazeControl.onBlur();
+  }
+
+  function handleHazeMouseLeave() {
+    hazeControl.onMouseLeave();
+  }
+
   function handleCellColorChange() {
     const renderer = getRenderer();
     if (!renderer || !cellColorPicker || !cellColorPicker2) return;
@@ -61,26 +118,6 @@ export function createRendererSettingsHandlers(deps) {
     if (!renderer) return;
     renderer.setLanternLightingEnabled(!!(lanternCheckbox && lanternCheckbox.checked));
     requestRender();
-  }
-
-  /**
-   * Haze strength slider.
-   *
-   * Slider range is 0..30 (percentage points). The renderer expects a 0..0.30
-   * scalar that represents the maximum blend toward the haze color.
-   */
-  function handleHazePreview() {
-    const renderer = getRenderer();
-    if (!renderer || !hazeSlider) return;
-    const pct = parseInt(hazeSlider.value, 10);
-    const strength = Number.isFinite(pct) ? Math.max(0, Math.min(30, pct)) * 0.01 : 0.0;
-    renderer.setHazeStrength?.(strength);
-    requestRender();
-  }
-
-  // Haze is purely visual, so commit == preview.
-  function handleHazeChange() {
-    handleHazePreview();
   }
 
   function handleScreenShowChange() {
@@ -115,6 +152,10 @@ export function createRendererSettingsHandlers(deps) {
     handleBgColorChange,
     handleHazePreview,
     handleHazeChange,
+    handleHazePointerDown,
+    handleHazePointerUpGlobal,
+    handleHazeBlur,
+    handleHazeMouseLeave,
     handleLanternChange,
     handleScreenShowChange,
     handleGridProjectionChange,
