@@ -72,7 +72,6 @@ export function createRendererSettingsHandlers(deps) {
     // Suppress duplicate commit events (pointerup-global + native 'change').
     commitSuppressMs: 250,
     captureTarget: hazeSlider,
-    commitOnMouseLeave: false,
   });
 
   function handleHazePreview() {
@@ -84,34 +83,86 @@ export function createRendererSettingsHandlers(deps) {
   }
 
   function handleHazePointerDown(e) {
-    hazeControl.onPointerDown(e);
+    hazeControl.beginSession(e);
   }
 
   function handleHazePointerUpGlobal() {
-    hazeControl.onPointerUpGlobal();
+    hazeControl.endSession(true);
   }
 
   function handleHazeBlur() {
-    hazeControl.onBlur();
+    hazeControl.endSession(true);
   }
 
-  function handleHazeMouseLeave() {
-    hazeControl.onMouseLeave();
-  }
-
-  function handleCellColorChange() {
+  function applyCellColors() {
     const renderer = getRenderer();
     if (!renderer || !cellColorPicker || !cellColorPicker2) return;
     renderer.setCellColors(cellColorPicker.value, cellColorPicker2.value);
     requestRender();
   }
 
-  function handleBgColorChange() {
+  function getCellColorsKey() {
+    if (!cellColorPicker || !cellColorPicker2) return "";
+    return `${cellColorPicker.value}|${cellColorPicker2.value}`;
+  }
+
+  // Some engines emit very frequent 'input' events while the OS color picker is open.
+  // Treat that interaction like a continuous drag and coalesce updates to keep the UI responsive.
+  const cellColorsControl = createThrottledControl({
+    getValue: getCellColorsKey,
+    applyPreview: () => applyCellColors(),
+    applyCommit: () => applyCellColors(),
+    previewIntervalMs: 33,
+    commitSuppressMs: 250,
+    captureTarget: cellColorPicker,
+  });
+
+  /**
+   * @param {Event | any} e
+   */
+  function handleCellColorPreview(e) {
+    // For OS-native pickers, treat repeated 'input' as a continuous session.
+    cellColorsControl.beginSession(e);
+    cellColorsControl.preview();
+  }
+
+  function handleCellColorCommit() {
+    cellColorsControl.endSession(true);
+  }
+
+  function applyBgColors() {
     const renderer = getRenderer();
     if (!renderer || !bgColorPicker || !bgColorPicker2) return;
     renderer.setBackgroundColors(bgColorPicker.value, bgColorPicker2.value);
     requestRender();
   }
+
+  function getBgColorsKey() {
+    if (!bgColorPicker || !bgColorPicker2) return "";
+    return `${bgColorPicker.value}|${bgColorPicker2.value}`;
+  }
+
+  const bgColorsControl = createThrottledControl({
+    getValue: getBgColorsKey,
+    applyPreview: () => applyBgColors(),
+    applyCommit: () => applyBgColors(),
+    previewIntervalMs: 33,
+    commitSuppressMs: 250,
+    captureTarget: bgColorPicker,
+  });
+
+  /**
+   * @param {Event | any} e
+   */
+  function handleBgColorPreview(e) {
+    bgColorsControl.beginSession(e);
+    bgColorsControl.preview();
+  }
+
+  function handleBgColorCommit() {
+    bgColorsControl.endSession(true);
+  }
+
 
   function handleLanternChange() {
     const renderer = getRenderer();
@@ -148,14 +199,15 @@ export function createRendererSettingsHandlers(deps) {
   }
 
   return {
-    handleCellColorChange,
-    handleBgColorChange,
+    handleCellColorPreview,
+    handleCellColorCommit,
+    handleBgColorPreview,
+    handleBgColorCommit,
     handleHazePreview,
     handleHazeChange,
     handleHazePointerDown,
     handleHazePointerUpGlobal,
     handleHazeBlur,
-    handleHazeMouseLeave,
     handleLanternChange,
     handleScreenShowChange,
     handleGridProjectionChange,

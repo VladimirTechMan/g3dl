@@ -272,8 +272,8 @@ export async function runStartupSequence(deps) {
   // Apply Settings toggles/colors/rules to the renderer.
   rendererSettingsUi.handleStableStopChange();
   rendererSettingsUi.handleToroidalChange();
-  rendererSettingsUi.handleCellColorChange();
-  rendererSettingsUi.handleBgColorChange();
+  rendererSettingsUi.handleCellColorCommit();
+  rendererSettingsUi.handleBgColorCommit();
   rendererSettingsUi.handleHazeChange();
   rendererSettingsUi.handleLanternChange();
   rendererSettingsUi.handleScreenShowChange();

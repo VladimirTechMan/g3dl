@@ -1,6 +1,7 @@
 /**
  * UI helper: throttle high-frequency preview updates (e.g., range input 'input')
- * during pointer drags, while applying the final value immediately on commit.
+ * during a continuous interaction session, while applying the final value
+ * immediately on commit.
  *
  * This is intended to keep the UI responsive on mobile browsers that may emit
  * very frequent input events.
@@ -14,8 +15,7 @@
  * @property {(value: T) => void} [applyCommit] - Apply a committed update; defaults to applyPreview.
  * @property {number} [previewIntervalMs] - Coalescing interval for preview updates (default ~30Hz).
  * @property {number} [commitSuppressMs] - Suppress duplicate commits within this window.
- * @property {HTMLElement | null} [captureTarget] - If provided, attempts pointer capture on pointerdown.
- * @property {boolean} [commitOnMouseLeave] - If true, commit when mouse leaves during drag (default false).
+ * @property {HTMLElement | null} [captureTarget] - If provided, attempts pointer capture when a session begins.
  * @property {() => number} [now] - Time source; defaults to performance.now().
  */
 
@@ -31,11 +31,10 @@ export function createThrottledControl(cfg) {
     previewIntervalMs = 33,
     commitSuppressMs = 250,
     captureTarget = null,
-    commitOnMouseLeave = false,
     now = () => performance.now(),
   } = cfg;
 
-  let dragging = false;
+  let sessionActive = false;
 
   /** @type {T | null} */
   let pendingValue = null;
@@ -84,7 +83,7 @@ export function createThrottledControl(cfg) {
 
   function preview() {
     const v = getValue();
-    if (dragging) {
+    if (sessionActive) {
       schedulePreview(v);
     } else {
       applyPreview(v);
@@ -111,10 +110,20 @@ export function createThrottledControl(cfg) {
   }
 
   /**
-   * @param {PointerEvent | any} e
+   * Begin a continuous interaction session.
+   *
+   * For pointer-driven controls, call this from `pointerdown` and pass the
+   * pointer event to enable best-effort pointer capture.
+   *
+   * For controls that do not deliver pointer events reliably (e.g. OS-native
+   * color pickers), call this from the first `input` event to enable throttled
+   * preview updates until `endSession()`.
+   *
+   * @param {PointerEvent | any} [e]
    */
-  function onPointerDown(e) {
-    dragging = true;
+  function beginSession(e) {
+    if (sessionActive) return;
+    sessionActive = true;
 
     // Best-effort pointer capture: improves delivery of pointerup for some engines.
     try {
@@ -126,25 +135,20 @@ export function createThrottledControl(cfg) {
     }
   }
 
-  function onPointerUpGlobal() {
-    if (!dragging) return;
-    dragging = false;
-    commit();
+  /**
+   * End the current interaction session.
+   *
+   * @param {boolean} [shouldCommit=true] - If false, ends the session without committing.
+   */
+  function endSession(shouldCommit = true) {
+    if (!sessionActive) return;
+    sessionActive = false;
+    if (shouldCommit) commit();
   }
 
-  function onBlur() {
-    dragging = false;
-    commit();
-  }
-
-  function onMouseLeave() {
-    if (!dragging) return;
-    dragging = false;
-    if (commitOnMouseLeave) commit();
-  }
 
   function cancel() {
-    dragging = false;
+    sessionActive = false;
     pendingValue = null;
     clearTimer();
   }
@@ -152,11 +156,9 @@ export function createThrottledControl(cfg) {
   return {
     preview,
     commit,
-    onPointerDown,
-    onPointerUpGlobal,
-    onBlur,
-    onMouseLeave,
+    beginSession,
+    endSession,
     cancel,
-    isDragging: () => dragging,
+    isSessionActive: () => sessionActive,
   };
 }

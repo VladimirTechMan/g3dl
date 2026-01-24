@@ -66,9 +66,6 @@ export function bindControls(dom, handlers) {
   if (handlers.handleHazeBlur) {
     add(d.hazeSlider, "blur", handlers.handleHazeBlur);
   }
-  if (handlers.handleHazeMouseLeave) {
-    add(d.hazeSlider, "mouseleave", handlers.handleHazeMouseLeave);
-  }
 
   // Ensure the density tooltip cannot get "stuck" visible if the pointer is released
   // outside the slider (some browsers do not always dispatch a 'change' in that case).
@@ -90,10 +87,23 @@ export function bindControls(dom, handlers) {
     add(d.densitySlider, "mouseleave", handlers.handleDensityMouseLeave);
   }
 
-  add(d.cellColorPicker, "input", handlers.handleCellColorChange);
-  add(d.cellColorPicker2, "input", handlers.handleCellColorChange);
-  add(d.bgColorPicker, "input", handlers.handleBgColorChange);
-  add(d.bgColorPicker2, "input", handlers.handleBgColorChange);
+  // Color pickers can emit very frequent 'input' events (especially on mobile OS pickers),
+  // so preview updates may be throttled by the controller.
+  add(d.cellColorPicker, "input", handlers.handleCellColorPreview);
+  add(d.cellColorPicker2, "input", handlers.handleCellColorPreview);
+  add(d.bgColorPicker, "input", handlers.handleBgColorPreview);
+  add(d.bgColorPicker2, "input", handlers.handleBgColorPreview);
+
+  // Commit final colors when the picker closes or the input loses focus.
+  add(d.cellColorPicker, "change", handlers.handleCellColorCommit);
+  add(d.cellColorPicker2, "change", handlers.handleCellColorCommit);
+  add(d.bgColorPicker, "change", handlers.handleBgColorCommit);
+  add(d.bgColorPicker2, "change", handlers.handleBgColorCommit);
+
+  add(d.cellColorPicker, "blur", handlers.handleCellColorCommit);
+  add(d.cellColorPicker2, "blur", handlers.handleCellColorCommit);
+  add(d.bgColorPicker, "blur", handlers.handleBgColorCommit);
+  add(d.bgColorPicker2, "blur", handlers.handleBgColorCommit);
 
   // Game rule preset and rule inputs
   add(d.presetSelect, "change", handlers.handlePresetChange);

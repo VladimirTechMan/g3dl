@@ -30,8 +30,10 @@ import { createPanelManager } from "./panels.js";
  * @property {(e?: PointerEvent) => void} [handleDensityPointerUpGlobal]
  * @property {(e?: FocusEvent) => void} [handleDensityBlur]
  * @property {(e?: MouseEvent) => void} [handleDensityMouseLeave]
- * @property {(e?: Event) => void} handleCellColorChange
- * @property {(e?: Event) => void} handleBgColorChange
+ * @property {(e?: Event) => void} handleCellColorPreview
+ * @property {(e?: Event) => void} handleCellColorCommit
+ * @property {(e?: Event) => void} handleBgColorPreview
+ * @property {(e?: Event) => void} handleBgColorCommit
  * @property {(e?: Event) => void} handlePresetChange
  * @property {(e?: Event) => void} handleRuleInputChange
  * @property {(e: KeyboardEvent) => void} handleRuleKeydown
@@ -40,7 +42,6 @@ import { createPanelManager } from "./panels.js";
  * @property {(e?: PointerEvent) => void} [handleHazePointerDown]
  * @property {(e?: PointerEvent) => void} [handleHazePointerUpGlobal]
  * @property {(e?: FocusEvent) => void} [handleHazeBlur]
- * @property {(e?: MouseEvent) => void} [handleHazeMouseLeave]
  * @property {(e?: Event) => void} handleLanternChange
  * @property {(e?: Event) => void} handleScreenShowChange
  * @property {(e?: Event) => void} handleGridProjectionChange

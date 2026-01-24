@@ -771,14 +771,15 @@ function installUiBindings(controllers) {
     handleDensityMouseLeave: () => densityUi.handleDensityMouseLeave(),
 
     // Renderer/visual settings
-    handleCellColorChange: () => rendererSettingsUi.handleCellColorChange(),
-    handleBgColorChange: () => rendererSettingsUi.handleBgColorChange(),
+    handleCellColorPreview: (e) => rendererSettingsUi.handleCellColorPreview(e),
+    handleCellColorCommit: () => rendererSettingsUi.handleCellColorCommit(),
+    handleBgColorPreview: (e) => rendererSettingsUi.handleBgColorPreview(e),
+    handleBgColorCommit: () => rendererSettingsUi.handleBgColorCommit(),
     handleHazePreview: () => rendererSettingsUi.handleHazePreview(),
     handleHazeChange: () => rendererSettingsUi.handleHazeChange(),
     handleHazePointerDown: (e) => rendererSettingsUi.handleHazePointerDown(e),
     handleHazePointerUpGlobal: () => rendererSettingsUi.handleHazePointerUpGlobal(),
     handleHazeBlur: () => rendererSettingsUi.handleHazeBlur(),
-    handleHazeMouseLeave: () => rendererSettingsUi.handleHazeMouseLeave(),
     handleLanternChange: () => rendererSettingsUi.handleLanternChange(),
     handleScreenShowChange: () => rendererSettingsUi.handleScreenShowChange(),
     handleGridProjectionChange: () => rendererSettingsUi.handleGridProjectionChange(),
