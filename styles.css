@@ -143,10 +143,81 @@ body {
 
 /* Shared translucent "glass" chrome used by HUD surfaces */
 .glass-chrome {
-  background: rgba(18, 18, 26, 0.7);
+  /*
+   * To keep the visual design consistent across desktop + mobile while staying
+   * cheap to composite, we emulate the “frosted glass” look using layered
+   * translucent fills + highlights (no backdrop blur).
+   */
+  position: relative;
+  overflow: hidden;
+  /* Keep pseudo-element effects from leaking into the rest of the page. */
+  isolation: isolate;
+  background:
+    /* Subtle top highlight */
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 38%,
+      rgba(255, 255, 255, 0.0) 100%
+    ),
+    /* Base tint */
+    rgba(18, 18, 26, 0.78);
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* Isolate painting/compositing to the panel bounds. */
+  contain: layout paint;
+}
+
+/* Inner sheen + a hint of texture to mimic glass without blur. */
+.glass-chrome::before,
+.glass-chrome::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure actual UI content sits above the decorative layers. */
+.glass-chrome > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Corner glow */
+.glass-chrome::before {
+  background:
+    radial-gradient(
+      120% 140% at 0% 0%,
+      rgba(74, 158, 255, 0.14) 0%,
+      rgba(74, 158, 255, 0.06) 30%,
+      rgba(74, 158, 255, 0.0) 60%
+    ),
+    radial-gradient(
+      140% 160% at 100% 0%,
+      rgba(123, 92, 255, 0.12) 0%,
+      rgba(123, 92, 255, 0.05) 28%,
+      rgba(123, 92, 255, 0.0) 60%
+    );
+  opacity: 0.9;
+}
+
+/* Fine-grain noise (very light). Keeping it subtle avoids banding on OLED. */
+.glass-chrome::after {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.018) 0px,
+      rgba(255, 255, 255, 0.018) 1px,
+      rgba(0, 0, 0, 0.0) 1px,
+      rgba(0, 0, 0, 0.0) 6px
+    );
+  /*
+   * Avoid `mix-blend-mode`: it forces blending with the animated WebGPU canvas
+   * behind the panel, which can trigger extra offscreen composition work on mobile.
+   * A slightly lower opacity keeps the visual texture subtle without needing blending.
+   */
+  opacity: 0.18;
 }
 
 /* Loading overlay (shown until WebGPU + UI initialization completes) */
@@ -464,12 +535,16 @@ body {
   height: var(--icon-btn-size);
   margin: 0;
   padding: 0;
-  background: var(--bg-tertiary);
+  background-color: var(--bg-tertiary);
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast),
+    color var(--transition-fast);
   flex-shrink: 0;
 }
 
@@ -480,7 +555,7 @@ body {
 }
 
 .icon-btn:hover {
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
 }
 
 .icon-btn:hover svg,
@@ -494,7 +569,7 @@ body {
 }
 
 .icon-btn:disabled:hover {
-  background: var(--bg-tertiary);
+  background-color: var(--bg-tertiary);
 }
 
 .icon-btn:disabled:active {
@@ -579,7 +654,7 @@ body {
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast);
   pointer-events: none;
 }
 
@@ -824,17 +899,20 @@ input[type="range"]::-moz-range-thumb {
   appearance: none;
   width: 22px;
   height: 22px;
-  background: var(--bg-tertiary);
+  background-color: var(--bg-tertiary);
   border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    opacity var(--transition-fast);
   position: relative;
   flex-shrink: 0;
 }
 
 .checkbox-label input[type="checkbox"]:checked {
-  background: var(--accent-primary);
+  background-color: var(--accent-primary);
   border-color: var(--accent-primary);
 }
 
@@ -1229,6 +1307,15 @@ textarea {
     font-size: 0.95rem;
     white-space: nowrap;
     line-height: 1.25;
+  }
+
+  /* Touch devices: avoid sticky :hover states and reduce extra compositing work. */
+  .icon-btn:hover {
+    background-color: var(--bg-tertiary);
+  }
+
+  .icon-btn:hover svg {
+    transform: none;
   }
 
   /* Touch targets: keep control buttons comfortable on touch */
