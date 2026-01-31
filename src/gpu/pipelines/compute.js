@@ -31,7 +31,7 @@ export async function createSimulationPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function _createExtractPipeline(r) {
+export async function createExtractPipeline(r) {
   if (r.extractPipeline) return r.extractPipeline;
   const code = G3DL_SHADERS.extract({ workgroupSize: r.workgroupSize });
   const mod = r._getShaderModule(code);
@@ -48,7 +48,7 @@ export async function _createExtractPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function _createInitPipeline(r) {
+export async function createInitPipeline(r) {
   if (r.initPipeline) return r.initPipeline;
   const code = G3DL_SHADERS.init({ workgroupSize: r.workgroupSize });
   const mod = r._getShaderModule(code);
@@ -65,7 +65,7 @@ export async function _createInitPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPUComputePipeline>}
  */
-export async function _createDrawArgsPipeline(r) {
+export async function createDrawArgsPipeline(r) {
   if (r.drawArgsPipeline) return r.drawArgsPipeline;
   const code = G3DL_SHADERS.drawArgs();
   const mod = r._getShaderModule(code);

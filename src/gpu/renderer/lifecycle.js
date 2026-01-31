@@ -1,6 +1,6 @@
 import { G3DL_LAYOUT } from "../dataLayout.js";
 import { MAX_PACKED_GRID_SIZE } from "../constants.js";
-import { _destroyGridResources as destroyGridResourcesImpl } from "../resources/grid.js";
+import { destroyGridResources as destroyGridResourcesImpl } from "../resources/grid.js";
 import { debugLog, debugWarn, error } from "../../util/log.js";
 import { LOG_MSG } from "../../util/messages.js";
 import { getCaps } from "../../util/caps.js";

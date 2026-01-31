@@ -2,32 +2,32 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
 import { MAX_PACKED_GRID_SIZE } from "./constants.js";
 import {
   createSimulationPipeline as createSimulationPipelineImpl,
-  _createExtractPipeline as createExtractPipelineImpl,
-  _createInitPipeline as createInitPipelineImpl,
-  _createDrawArgsPipeline as createDrawArgsPipelineImpl,
+  createExtractPipeline as createExtractPipelineImpl,
+  createInitPipeline as createInitPipelineImpl,
+  createDrawArgsPipeline as createDrawArgsPipelineImpl,
   createAabbPipelines as createAabbPipelinesImpl,
 } from "./pipelines/compute.js";
 import {
   createCellsRenderPipeline,
-  _createGridProjectionPipeline as createGridProjectionPipelineImpl,
-  _createBackgroundPipeline as createBackgroundPipelineImpl,
+  createGridProjectionPipeline as createGridProjectionPipelineImpl,
+  createBackgroundPipeline as createBackgroundPipelineImpl,
 } from "./pipelines/render.js";
 import {
-  _createCubeGeometry as createCubeGeometryImpl,
-  _rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
+  createCubeGeometry as createCubeGeometryImpl,
+  rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl,
 } from "./resources/geometry.js";
 import {
-  _createGridBuffers as createGridBuffersImpl,
-  _destroyGridResources as destroyGridResourcesImpl,
+  createGridBuffers as createGridBuffersImpl,
+  destroyGridResources as destroyGridResourcesImpl,
 } from "./resources/grid.js";
-import { _createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
+import { createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
 import {
-  _shouldReadbackStats as shouldReadbackStatsImpl,
-  _acquireReadbackSlot as acquireReadbackSlotImpl,
-  _startReadback as startReadbackImpl,
+  shouldReadbackStats as shouldReadbackStatsImpl,
+  acquireReadbackSlot as acquireReadbackSlotImpl,
+  startReadback as startReadbackImpl,
   requestPopulationReadback as requestPopulationReadbackImpl,
 } from "./readback.js";
-import { _rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
+import { rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
 import { BufferManager } from "./util/bufferManager.js";
 import { hexToRgb01 } from "./util/color.js";
 import { initRenderer, resizeRenderer, destroyRenderer } from "./renderer/lifecycle.js";

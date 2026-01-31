@@ -1,6 +1,6 @@
 import { G3DL_LAYOUT } from "../dataLayout.js";
 import { G3DL_SHADERS } from "../shaders.js";
-import { _rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl } from "../resources/geometry.js";
+import { rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl } from "../resources/geometry.js";
 
 /**
  * Render pipeline factory functions.
@@ -55,7 +55,7 @@ export async function createCellsRenderPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPURenderPipeline>}
  */
-export async function _createGridProjectionPipeline(r) {
+export async function createGridProjectionPipeline(r) {
   if (r.gridProjPipeline) return r.gridProjPipeline;
 
   const code = G3DL_SHADERS.gridProjection();
@@ -131,7 +131,7 @@ export async function _createGridProjectionPipeline(r) {
  * @param {object} r Renderer instance (WebGPURenderer)
  * @returns {Promise<GPURenderPipeline>}
  */
-export async function _createBackgroundPipeline(r) {
+export async function createBackgroundPipeline(r) {
   if (r.bgPipeline) return r.bgPipeline;
   const code = G3DL_SHADERS.background();
   const mod = r._getShaderModule(code);

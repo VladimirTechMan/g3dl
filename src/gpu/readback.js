@@ -112,7 +112,7 @@ export function destroyReadbackResources(r, tryUnmap, tryDestroy) {
  * @param {import('./renderer.js').WebGPURenderer} r
  * @param {boolean} force
  */
-export function _shouldReadbackStats(r, force) {
+export function shouldReadbackStats(r, force) {
   if (force) return true;
   const now =
     typeof performance !== "undefined" && performance.now
@@ -128,7 +128,7 @@ export function _shouldReadbackStats(r, force) {
  * @param {import('./renderer.js').WebGPURenderer} r
  * @param {boolean} forceWait
  */
-export async function _acquireReadbackSlot(r, forceWait) {
+export async function acquireReadbackSlot(r, forceWait) {
   const n = r.statsStagingBuffers ? r.statsStagingBuffers.length : 0;
   if (n === 0) return -1;
 
@@ -154,7 +154,7 @@ export async function _acquireReadbackSlot(r, forceWait) {
  * @param {number} slot
  * @param {number} stepGeneration
  */
-export function _startReadback(r, slot, stepGeneration) {
+export function startReadback(r, slot, stepGeneration) {
   const popBuf = r.statsStagingBuffers[slot];
   const chgBuf = r.changeStagingBuffers[slot];
 

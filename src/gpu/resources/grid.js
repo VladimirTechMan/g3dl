@@ -20,7 +20,7 @@ import {
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function _destroyGridResources(r) {
+export function destroyGridResources(r) {
   const tryUnmap = (b) => {
     try {
       if (b) b.unmap();
@@ -87,9 +87,9 @@ export function _destroyGridResources(r) {
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function _createGridBuffers(r) {
+export function createGridBuffers(r) {
   // Clean up old GPU resources to avoid leaks when resizing the grid
-  _destroyGridResources(r);
+  destroyGridResources(r);
 
   const total = r.gridSize ** 3;
 

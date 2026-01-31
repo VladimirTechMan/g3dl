@@ -9,7 +9,7 @@
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function _createCubeGeometry(r) {
+export function createCubeGeometry(r) {
   const v = new Float32Array([
     -0.5, -0.5, 0.5, 0, 0, 1, 0.5, -0.5, 0.5, 0, 0, 1, 0.5, 0.5, 0.5, 0, 0, 1,
     -0.5, 0.5, 0.5, 0, 0, 1, -0.5, -0.5, -0.5, 0, 0, -1, -0.5, 0.5, -0.5, 0,
@@ -46,7 +46,7 @@ export function _createCubeGeometry(r) {
  *
  * @param {object} r Renderer instance (WebGPURenderer)
  */
-export function _rebuildGridProjectionInstances(r) {
+export function rebuildGridProjectionInstances(r) {
   if (!r.gridProjInstanceBuffer || !r.device) return;
 
   const size = r.gridSize * r.cellSize;
