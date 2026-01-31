@@ -4,7 +4,6 @@
  */
 
 import { WebGPURenderer } from "../gpu/renderer.js";
-import { assertRendererApi } from "../gpu/rendererApi.js";
 import { dom } from "../ui/dom.js";
 import { copySettingsUrlToClipboard } from "./settings.js";
 import { LoopController } from "./loop.js";
@@ -22,6 +21,7 @@ import { createStatsController } from "./statsUi.js";
 import { createLoopHooks } from "./loopHooks.js";
 import { runStartupSequence } from "./startup.js";
 import { debugLog, debugWarn, error } from "../util/log.js";
+import { isDebugEnabled } from "../util/debug.js";
 import { LOG_MSG } from "../util/messages.js";
 import { UI_MSG } from "./messages.js";
 
@@ -588,8 +588,18 @@ async function init() {
 
   try {
     ctx.renderer = new WebGPURenderer(canvas);
-    // Fail fast if a refactor accidentally removed/renamed required methods.
-    assertRendererApi(ctx.renderer);
+
+    // Debug-only: fail fast if a refactor accidentally removed/renamed required methods.
+    // Keep this out of the hot path for normal users (and avoid fetching the module).
+    if (isDebugEnabled()) {
+      try {
+        const { assertRendererApi } = await import("../gpu/rendererApi.js");
+        assertRendererApi(ctx.renderer);
+      } catch (e) {
+        // If the debug module fails to load for any reason, do not block startup.
+        debugWarn("Debug renderer API assertion unavailable:", e?.message || e);
+      }
+    }
     await ctx.renderer.init();
     debugLog("WebGPU renderer initialized successfully");
 
