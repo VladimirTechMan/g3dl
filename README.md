@@ -12,7 +12,7 @@ For a bit of story behind the project, check [this LinkedIn post](https://www.li
 - **WebGPU compute shaders**: Simulation runs entirely on the GPU for maximum performance.
 - **Instanced rendering**: Efficient rendering of hundreds of thousands of cubes.
 - **Interactive camera**: Rotate, pan, and zoom with mouse or touch.
-- **Screen show**: Optional cinematic camera autopilot while the simulation is running. Disables user camera controls until turned off; uses 15–20s passes with brief fade transitions.
+- **Screen show**: Optional cinematic camera autopilot while the simulation is running. Locks user camera controls **while playing** (controls return when paused); uses 15–20s passes with brief fade transitions.
 - **Lantern lighting**: Optional per-cell emissive lighting with subtle time-based flicker (continues even when the simulation is paused).
 - **Haze**: Optional distance haze.
 - **Copy URL with settings**: Generate a shareable URL snapshot of the current Settings values.
@@ -33,7 +33,7 @@ Because [WebGPU availability](https://developer.mozilla.org/en-US/docs/Web/API/W
 
 ## Usage
 
-Open `index.html` in a supported browser (must be served over HTTPS, even if from `localhost`). Check the Help panel for usage details.
+Open `index.html` in a supported browser (must be served from a secure context). Check the Help panel for usage details.
 
 **Note**: The maximum grid size depends on device WebGPU limits; the UI will attempt clamping the value accordingly.
 
@@ -95,7 +95,7 @@ GPU contracts:
 GPU engine:
 - `src/gpu/renderer.js` - WebGPU simulation + rendering engine (public renderer API; orchestrates submodules)
 - `src/gpu/renderer/*` - Renderer implementation split by concern (lifecycle, step encoding, render encoding, pacing, optional AABB queries)
-- `src/gpu/rendererApi.js` - Runtime contract check to detect renderer API mismatches during refactors
+- `src/gpu/rendererApi.js` - Debug-only runtime contract check (lazy-loaded when `?debug` is enabled) to detect renderer API mismatches during refactors
 - `src/gpu/shaders.js` - WGSL shader sources assembled from the data layout contract
 - `src/gpu/pipelines/*` - Compute and render pipeline creation (async/lazy when possible)
 - `src/gpu/resources/*` - GPU buffer lifecycle (grid/geometry/uniforms/bind groups, per-frame uniform updates)

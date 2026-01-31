@@ -4,6 +4,9 @@
  * This is a low-cost safety net during refactors: if renderer.js is accidentally
  * truncated or a method is renamed, we fail fast with a helpful error message
  * instead of encountering hard-to-debug "is not a function" crashes later.
+ *
+ * **Debug-only**: this module is lazy-loaded from `src/app/app.js` only when the
+ * `?debug` URL flag is enabled, to avoid shipping extra checks on the hot path.
  */
 
 const REQUIRED_METHODS = [
