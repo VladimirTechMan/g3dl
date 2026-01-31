@@ -145,7 +145,7 @@ export async function acquireReadbackSlot(r, forceWait) {
   const promises = (r.readbackPromises || []).filter(Boolean);
   if (promises.length === 0) return -1;
   await Promise.race(promises);
-  return _acquireReadbackSlot(r, false);
+  return acquireReadbackSlot(r, false);
 }
 
 /**
