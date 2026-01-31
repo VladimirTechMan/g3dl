@@ -136,61 +136,6 @@ export async function stepSimulation(r, options = {}) {
   return r.lastStepChanged;
 }
 
-export async function extractLivingCells(r, options = {}) {
-  // Used after randomization / initialization. Default to syncing so UI updates immediately.
-  const syncStats = options.syncStats !== false;
-  const wg = computeWorkgroups(r);
-
-  const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
-  r._extractParams[extP.GRID_SIZE] = r.gridSize;
-  r._extractParams[extP.MAX_CELLS] = r.maxCells;
-  r._extractParams[extP.PAD0] = 0;
-  r._extractParams[extP.PAD1] = 0;
-  r._queueWriteU32(r.extractParamsBuffer, 0, r._extractParams);
-
-  // Reset population counter. Force 'changed' true for the UI/controls.
-  r._queueWriteU32(r.atomicCounterBuffer, 0, r._u32_0);
-  r._queueWriteU32(r.changeCounterBuffer, 0, r._u32_1);
-
-  const slot = await r._acquireReadbackSlot(syncStats);
-
-  const encoder = r.device.createCommandEncoder();
-
-  // Extract
-  {
-    const pass = encoder.beginComputePass();
-    pass.setPipeline(r.extractPipeline);
-    pass.setBindGroup(0, r.extractBindGroups[r.currentBuffer]);
-    pass.dispatchWorkgroups(wg.wgX, wg.wgY, wg.wgZ);
-    pass.end();
-  }
-
-  // Indirect args
-  {
-    const pass = encoder.beginComputePass();
-    pass.setPipeline(r.drawArgsPipeline);
-    pass.setBindGroup(0, r.drawArgsBindGroup);
-    pass.dispatchWorkgroups(1, 1, 1);
-    pass.end();
-  }
-
-  if (slot >= 0) {
-    encoder.copyBufferToBuffer(r.atomicCounterBuffer, 0, r.statsStagingBuffers[slot], 0, 4);
-    encoder.copyBufferToBuffer(r.changeCounterBuffer, 0, r.changeStagingBuffers[slot], 0, 4);
-  }
-
-  r.device.queue.submit([encoder.finish()]);
-
-  // Extract does not advance generation; stats correspond to the current generation number.
-  const gen = r.generation;
-  if (slot >= 0) {
-    const p = r._startReadback(slot, gen);
-    if (syncStats) {
-      await p;
-    }
-  }
-}
-
 export async function randomizeGrid(r, density = 0.15, initSize = null) {
   const size = r.gridSize;
   const region = Math.min(initSize || size, size);

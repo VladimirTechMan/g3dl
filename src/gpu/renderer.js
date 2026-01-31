@@ -34,7 +34,6 @@ import { initRenderer, resizeRenderer, destroyRenderer } from "./renderer/lifecy
 import { renderFrame as renderFrameImpl } from "./renderer/render.js";
 import {
   stepSimulation as stepSimulationImpl,
-  extractLivingCells as extractLivingCellsImpl,
   randomizeGrid as randomizeGridImpl,
 } from "./renderer/step.js";
 import { requestLivingCellsAABB as requestLivingCellsAABBImpl } from "./renderer/aabb.js";
@@ -764,9 +763,6 @@ export class WebGPURenderer {
     return await stepSimulationImpl(this, options);
   }
 
-  async extractLivingCells(options = {}) {
-    return await extractLivingCellsImpl(this, options);
-  }
   setSurviveRule(c) {
     this.surviveRule = 0;
     for (const n of c) if (n >= 0 && n <= 26) this.surviveRule |= 1 << n;

@@ -73,13 +73,6 @@ export function getCaps() {
 /**
  * @returns {boolean}
  */
-export function isCoarsePointer() {
-  return getCaps().isCoarsePointer;
-}
-
-/**
- * @returns {boolean}
- */
 export function isIOS() {
   return getCaps().isIOS;
 }
