@@ -7,8 +7,12 @@
  * - Preserve existing behavior (fade timing, pass generation, AABB refresh rate).
  */
 
+// ─── Timing ──────────────────────────────────────────────────────────────────
+/** Duration range for a single camera pass (ms). */
 const SCREENSHOW_PASS_MIN_MS = 15000;
 const SCREENSHOW_PASS_MAX_MS = 20000;
+
+/** Fade-out / fade-in duration between passes (ms). Read from CSS for consistency. */
 const SCREENSHOW_FADE_MS = readCssTimeMs("--screenshow-fade-ms", 900);
 
 /**
@@ -38,7 +42,106 @@ function readCssTimeMs(varName, fallbackMs) {
   const v = Number.parseFloat(raw);
   return Number.isFinite(v) ? v : fallbackMs;
 }
+/** Minimum interval between AABB readback requests (ms). */
 const SCREENSHOW_AABB_REQUEST_MIN_INTERVAL_MS = 1200;
+
+// ─── Focus / AABB ────────────────────────────────────────────────────────────
+/** Fallback focus radius as a fraction of grid world-extent. */
+const FOCUS_RADIUS_FALLBACK_FRACTION = 0.35;
+/** Minimum focus radius: at least this many cells' worth of extent. */
+const FOCUS_RADIUS_MIN_CELLS = 2.0;
+/** AABB-to-radius scale: fraction of the largest AABB extent used as focus radius. */
+const FOCUS_RADIUS_AABB_FRACTION = 0.55;
+
+// ─── Distance constraints ────────────────────────────────────────────────────
+/** Padding (in cell-size units) added to focus radius for the minimum camera distance. */
+const MIN_DIST_PAD_CELLS = 10.0;
+/** Maximum camera distance as a multiple of full grid world-extent. */
+const MAX_DIST_GRID_SCALE = 4.0;
+/** Maximum camera distance: additive radius scale + cell-size padding. */
+const MAX_DIST_RADIUS_SCALE = 12.0;
+const MAX_DIST_PAD_CELLS = 40.0;
+
+// ─── Gen0 establishing shot ──────────────────────────────────────────────────
+/** Scale factor applied to the init-cube bounding sphere for "slightly outside" framing. */
+const GEN0_OUTSIDE_RADIUS_SCALE = 1.03;
+/** Extra world-space padding (in cell-size units) for Gen0 starting radius. */
+const GEN0_OUTSIDE_PAD_CELLS = 2.0;
+/** Scale factor for the focus-relative minimum distance when starting from Gen0. */
+const GEN0_MIN_DIST_RADIUS_SCALE = 1.06;
+/** Extra padding (in cell-size units) for the focus-relative minimum distance. */
+const GEN0_MIN_DIST_PAD_CELLS = 3.0;
+/** Extra padding (in cell-size units) to ensure maxDist > minDist for Gen0 starts. */
+const GEN0_MAX_DIST_PAD_CELLS = 8.0;
+
+// ─── Pass end-parameters (drift ranges) ─────────────────────────────────────
+/** Yaw sweep range (radians) over a single pass. */
+const YAW_DELTA_MIN = 0.85;
+const YAW_DELTA_MAX = 2.4;
+/** Pitch variation range (radians) relative to starting pitch. */
+const PITCH_DRIFT_MIN = -0.18;
+const PITCH_DRIFT_MAX = 0.18;
+/** Absolute pitch clamp (radians). Prevents extreme overhead/underfoot views. */
+const PITCH_CLAMP_MIN = -0.62;
+const PITCH_CLAMP_MAX = 0.62;
+/** Distance variation range (multiplier on starting distance). */
+const DIST_DRIFT_MIN = 0.9;
+const DIST_DRIFT_MAX = 1.18;
+/** Roll range (radians) at start and end of a pass. Keeps horizon nearly level. */
+const ROLL_START_MIN = -0.14;
+const ROLL_START_MAX = 0.14;
+const ROLL_END_MIN = -0.16;
+const ROLL_END_MAX = 0.16;
+
+// ─── Camera animation (per-frame) ───────────────────────────────────────────
+/** Minimum target-drift amplitude (in cell-size units). */
+const TARGET_DRIFT_MIN_CELLS = 2.0;
+/** Target-drift amplitude as a fraction of focus radius. */
+const TARGET_DRIFT_RADIUS_FRACTION = 0.08;
+/** Per-axis drift weight factors (relative contribution of each axis to oscillation). */
+const DRIFT_WEIGHT_X = 0.65;
+const DRIFT_WEIGHT_Y = 0.35;
+const DRIFT_WEIGHT_Z = 0.75;
+/** Per-axis drift frequency multipliers (cycles per pass, fractional for variety). */
+const DRIFT_FREQ_X = 0.31;
+const DRIFT_FREQ_Y = 0.44;
+const DRIFT_FREQ_Z = 0.38;
+/** Roll oscillation amplitude (radians) and frequency (cycles per pass). */
+const ROLL_OSCILLATION_AMP = 0.15;
+const ROLL_OSCILLATION_FREQ = 0.23;
+
+// ─── Camera smoothing ────────────────────────────────────────────────────────
+/** Time constant (ms) for the exponential smoothing filter. */
+const SMOOTH_TIME_CONSTANT_MS = 250.0;
+/** Smoothing coefficient clamp (per-frame blending factor). */
+const SMOOTH_ALPHA_MIN = 0.05;
+const SMOOTH_ALPHA_MAX = 0.25;
+
+// ─── Fly-through heuristic ──────────────────────────────────────────────────
+/** Live density thresholds for discouraging fly-through views. */
+const FLY_THROUGH_DENSITY_LO = 0.12;
+const FLY_THROUGH_DENSITY_HI = 0.25;
+/** Focus-radius-to-cube-half ratio thresholds for discouraging fly-through. */
+const FLY_THROUGH_SIZE_LO = 0.5;
+const FLY_THROUGH_SIZE_HI = 0.85;
+
+// ─── Eye-position sampling ──────────────────────────────────────────────────
+/** Overshoot beyond the grid bounding sphere (fraction). */
+const EYE_SPHERE_OVERSHOOT = 1.2;
+/** Minimum radial fraction of the bounding sphere for eye placement. */
+const EYE_RMIN_BASE_FRACTION = 0.05;
+/** When fly-through is discouraged, shift minimum radius outward to this fraction. */
+const EYE_RMIN_SAFE_FRACTION = 0.55;
+/** Cluster avoidance: extra padding (in cell-size units) beyond the focus radius. */
+const EYE_CLUSTER_PAD_CELLS = 3.5;
+/** AABB no-fly padding (in cell-size units). */
+const EYE_AABB_PAD_CELLS = 1.25;
+/** Maximum attempts to find a valid start position before falling back. */
+const EYE_MAX_ATTEMPTS = 32;
+/** Near-center guard: reject points within this fraction of rMinBase in dense scenes. */
+const EYE_CENTER_GUARD_FRACTION = 1.05;
+/** Fly-through factor threshold below which the near-center guard is active. */
+const EYE_CENTER_GUARD_FLY_THRESHOLD = 0.35;
 
 /**
  * @typedef {import("../state.js").AppState} AppState
@@ -362,7 +465,7 @@ export class ScreenShowController {
       ss.focusCenter[0] = 0;
       ss.focusCenter[1] = 0;
       ss.focusCenter[2] = 0;
-      ss.focusRadius = gs * cs * 0.35;
+      ss.focusRadius = gs * cs * FOCUS_RADIUS_FALLBACK_FRACTION;
     }
 
     // Try to refresh the AABB, but only at low frequency.
@@ -381,8 +484,8 @@ export class ScreenShowController {
 
     // Choose a distance that keeps the live cluster comfortably visible.
     // These bounds also serve as the "collision" envelope: we stay outside the cluster radius plus padding.
-    let minDist = r + cs * 10.0;
-    let maxDist = Math.min(gs * cs * 4.0, r * 12.0 + cs * 40.0);
+    let minDist = r + cs * MIN_DIST_PAD_CELLS;
+    let maxDist = Math.min(gs * cs * MAX_DIST_GRID_SCALE, r * MAX_DIST_RADIUS_SCALE + cs * MAX_DIST_PAD_CELLS);
 
     // Special case: when Screen show is started from generation 0 (Run), begin the
     // first pass slightly outside the Gen0 initialization cube so the user sees the
@@ -405,12 +508,12 @@ export class ScreenShowController {
 
       // "Slightly outside" the cube: use a small world-space padding in addition to
       // a modest radius scale so the initial framing is not clipped.
-      minStartRadiusFromOrigin = initCubeSphereR * 1.03 + cs * 2.0;
+      minStartRadiusFromOrigin = initCubeSphereR * GEN0_OUTSIDE_RADIUS_SCALE + cs * GEN0_OUTSIDE_PAD_CELLS;
 
       // Ensure focus-relative constraints allow selecting a point at/above that radius.
       // (This is the main constraint used when focusCenter is near origin.)
-      minDist = Math.max(minDist, initCubeSphereR * 1.06 + cs * 3.0);
-      maxDist = Math.max(maxDist, minDist + cs * 8.0);
+      minDist = Math.max(minDist, initCubeSphereR * GEN0_MIN_DIST_RADIUS_SCALE + cs * GEN0_MIN_DIST_PAD_CELLS);
+      maxDist = Math.max(maxDist, minDist + cs * GEN0_MAX_DIST_PAD_CELLS);
     }
 
     // Screen show start-point selection: sample points along a radial line from the *grid box center* (world origin),
@@ -449,9 +552,9 @@ export class ScreenShowController {
     const pitch0 = Math.asin(clamp(sdy / dist0, -1, 1));
 
     // End-of-pass parameters: drift gently away from the chosen starting framing.
-    const yawDelta = (Math.random() < 0.5 ? -1 : 1) * randRange(0.85, 2.4);
-    const pitch1 = clamp(pitch0 + randRange(-0.18, 0.18), -0.62, 0.62);
-    const dist1 = clamp(dist0 * randRange(0.9, 1.18), minDist, maxDist);
+    const yawDelta = (Math.random() < 0.5 ? -1 : 1) * randRange(YAW_DELTA_MIN, YAW_DELTA_MAX);
+    const pitch1 = clamp(pitch0 + randRange(PITCH_DRIFT_MIN, PITCH_DRIFT_MAX), PITCH_CLAMP_MIN, PITCH_CLAMP_MAX);
+    const dist1 = clamp(dist0 * randRange(DIST_DRIFT_MIN, DIST_DRIFT_MAX), minDist, maxDist);
 
     const pass = {
       startMs: nowMs,
@@ -462,8 +565,8 @@ export class ScreenShowController {
       pitch1: pitch1,
       dist0: dist0,
       dist1: dist1,
-      roll0: randRange(-0.14, 0.14),
-      roll1: randRange(-0.16, 0.16),
+      roll0: randRange(ROLL_START_MIN, ROLL_START_MAX),
+      roll1: randRange(ROLL_END_MIN, ROLL_END_MAX),
       phase: randRange(0, Math.PI * 2),
       targetPhase: randRange(0, Math.PI * 2),
       state: immediate ? "running" : "fadingIn",
@@ -545,12 +648,12 @@ export class ScreenShowController {
 
     // Focus parameters (world space).
     const center = ss.focusCenter;
-    const driftAmp = Math.max(this.renderer.cellSize * 2.0, ss.focusRadius * 0.08);
+    const driftAmp = Math.max(this.renderer.cellSize * TARGET_DRIFT_MIN_CELLS, ss.focusRadius * TARGET_DRIFT_RADIUS_FRACTION);
 
     // Target drift: small oscillation around focus center.
-    const driftX = driftAmp * 0.65 * Math.sin(pass.targetPhase + Math.PI * 2 * t * 0.31);
-    const driftY = driftAmp * 0.35 * Math.sin(pass.targetPhase + Math.PI * 2 * t * 0.44);
-    const driftZ = driftAmp * 0.75 * Math.sin(pass.targetPhase + Math.PI * 2 * t * 0.38);
+    const driftX = driftAmp * DRIFT_WEIGHT_X * Math.sin(pass.targetPhase + Math.PI * 2 * t * DRIFT_FREQ_X);
+    const driftY = driftAmp * DRIFT_WEIGHT_Y * Math.sin(pass.targetPhase + Math.PI * 2 * t * DRIFT_FREQ_Y);
+    const driftZ = driftAmp * DRIFT_WEIGHT_Z * Math.sin(pass.targetPhase + Math.PI * 2 * t * DRIFT_FREQ_Z);
 
     const tx = center[0] + driftX;
     const ty = center[1] + driftY;
@@ -570,7 +673,7 @@ export class ScreenShowController {
 
     // Up vector derived from yaw/pitch + roll.
     // Base up approximated by rotating world-up around view direction.
-    const upRoll = roll + 0.15 * Math.sin(pass.phase + Math.PI * 2 * t * 0.23);
+    const upRoll = roll + ROLL_OSCILLATION_AMP * Math.sin(pass.phase + Math.PI * 2 * t * ROLL_OSCILLATION_FREQ);
     const urc = Math.cos(upRoll), urs = Math.sin(upRoll);
     // Start from world up; apply roll by mixing in a right-vector component.
     // Compute right vector = normalize(cross(up, forward)).
@@ -595,7 +698,7 @@ export class ScreenShowController {
     } else {
       const dt = Math.max(0, nowMs - (ss.lastSmoothMs || nowMs));
       ss.lastSmoothMs = nowMs;
-      const a = clamp(dt / 250.0, 0.05, 0.25); // smoothing coefficient per frame
+      const a = clamp(dt / SMOOTH_TIME_CONSTANT_MS, SMOOTH_ALPHA_MIN, SMOOTH_ALPHA_MAX); // smoothing coefficient per frame
 
       const se = ss.smoothEye;
       const st = ss.smoothTarget;
@@ -674,7 +777,7 @@ export class ScreenShowController {
     const ez = (max[2] - min[2] + 1) * cs;
 
     // Conservative radius: make sure at least a couple of cubes are included.
-    const r = Math.max(cs * 2.0, 0.55 * Math.max(ex, ey, ez));
+    const r = Math.max(cs * FOCUS_RADIUS_MIN_CELLS, FOCUS_RADIUS_AABB_FRACTION * Math.max(ex, ey, ez));
 
     const ss = this.state.screenshow.state;
     ss.focusCenter[0] = wx;
@@ -744,11 +847,11 @@ function cellsAabbToWorldAabb(aabb, gs, cs) {
 
 function screenShowFlyThroughFactor(density, focusRadius, cubeHalf) {
   const d = clamp(density, 0, 1);
-  const td = clamp((d - 0.12) / (0.25 - 0.12), 0, 1); // density transition
+  const td = clamp((d - FLY_THROUGH_DENSITY_LO) / (FLY_THROUGH_DENSITY_HI - FLY_THROUGH_DENSITY_LO), 0, 1);
   const densityFactor = 1.0 - smoothstep(td);
 
   const s = clamp(focusRadius / Math.max(1e-6, cubeHalf), 0, 2);
-  const ts = clamp((s - 0.5) / (0.85 - 0.5), 0, 1); // size transition
+  const ts = clamp((s - FLY_THROUGH_SIZE_LO) / (FLY_THROUGH_SIZE_HI - FLY_THROUGH_SIZE_LO), 0, 1);
   const sizeFactor = 1.0 - smoothstep(ts);
 
   return clamp(Math.min(densityFactor, sizeFactor), 0, 1);
@@ -767,19 +870,20 @@ function pickScreenShowStartEyeWorld(
 ) {
   const half = gs * cs * 0.5;
   const cubeSphereR = half * 1.7320508075688772; // sqrt(3), bounding sphere radius of the grid cube
-  const cubeSphereMax = cubeSphereR * 1.2; // allow up to 20% beyond that sphere
+  const cubeSphereMax = cubeSphereR * EYE_SPHERE_OVERSHOOT;
 
-  // Radial range: sample from 5% of the cube sphere radius up to the maximum, with a mild center bias.
+  // Radial range: sample from a small fraction of the cube sphere radius up to the maximum,
+  // with a mild center bias.
   // When fly-through is discouraged (dense scenes / large clusters), shift the minimum radius outward.
-  const rMinBase = cubeSphereR * 0.05;
+  const rMinBase = cubeSphereR * EYE_RMIN_BASE_FRACTION;
   const f = clamp(flyThroughFactor, 0, 1);
-  const rMin = lerp(cubeSphereR * 0.55, rMinBase, f);
+  const rMin = lerp(cubeSphereR * EYE_RMIN_SAFE_FRACTION, rMinBase, f);
 
   // Avoid starting inside (or too close to) the live cluster itself.
-  const avoidRadius = focusRadius + cs * 3.5;
-  const aabbPad = cs * 1.25;
+  const avoidRadius = focusRadius + cs * EYE_CLUSTER_PAD_CELLS;
+  const aabbPad = cs * EYE_AABB_PAD_CELLS;
 
-  for (let attempt = 0; attempt < 32; attempt++) {
+  for (let attempt = 0; attempt < EYE_MAX_ATTEMPTS; attempt++) {
     const dir = randomUnitVec3();
 
     // Sample along the radius from the grid center with a mild bias toward the interval center.
@@ -814,7 +918,7 @@ function pickScreenShowStartEyeWorld(
     }
 
     // Mild guard: avoid starting very near the cube center (rare but visually unhelpful in dense scenes).
-    if (t < rMinBase * 1.05 && f < 0.35) continue;
+    if (t < rMinBase * EYE_CENTER_GUARD_FRACTION && f < EYE_CENTER_GUARD_FLY_THRESHOLD) continue;
 
     return [px, py, pz];
   }
