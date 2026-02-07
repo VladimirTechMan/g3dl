@@ -326,16 +326,23 @@ async function runCase({
       device.queue.writeBuffer(populationCount, 0, new Uint32Array([0]));
 
       const enc = device.createCommandEncoder();
-      const pass = enc.beginComputePass();
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, gpuOutIsB ? bindAtoB : bindBtoA);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
+
+      {
+        const pass = enc.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, gpuOutIsB ? bindAtoB : bindBtoA);
+        pass.dispatchWorkgroups(wgX, wgY, wgZ);
+        pass.end();
+      }
 
       // Validate the extraction/compaction path used by rendering.
-      pass.setPipeline(extractPipeline);
-      pass.setBindGroup(0, gpuOutIsB ? extractBindReadB : extractBindReadA);
-      pass.dispatchWorkgroups(wgX, wgY, wgZ);
-      pass.end();
+      {
+        const pass = enc.beginComputePass();
+        pass.setPipeline(extractPipeline);
+        pass.setBindGroup(0, gpuOutIsB ? extractBindReadB : extractBindReadA);
+        pass.dispatchWorkgroups(wgX, wgY, wgZ);
+        pass.end();
+      }
 
       // Copy the newly produced grid to the staging buffer for readback.
       const src = gpuOutIsB ? gridB : gridA;
