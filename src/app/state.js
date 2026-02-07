@@ -114,8 +114,8 @@ export function createAppState() {
   return {
     settings: {
       speed: 300,
-      gridSize: 96,
-      initSize: 64,
+      gridSize: 128,
+      initSize: 96,
       density: 0.15,
     },
     sim: {
