@@ -5,8 +5,9 @@
  * `app.js`. Keeping it centralized improves readability and makes future refactors
  * safer (humans + AI agents have a single source of truth).
  *
- * NOTE: UI controls (DOM) remain the authoritative source for many settings. The
- * state mirrors those values for scheduling decisions, renderer calls, and URL sharing.
+ * NOTE: AppState is the canonical source of *defaults*. During runtime, UI controls
+ * (DOM) are still authoritative (the state mirrors those values for scheduling decisions,
+ * renderer calls, and URL sharing).
  */
 
 /**

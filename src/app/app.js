@@ -24,6 +24,7 @@ import { debugLog, debugWarn, error } from "../util/log.js";
 import { isDebugEnabled } from "../util/debug.js";
 import { LOG_MSG } from "../util/messages.js";
 import { UI_MSG } from "./messages.js";
+import { delayFromSpeedSliderValue } from "./speedMapping.js";
 
 // DOM Elements (cached)
 const {
@@ -102,17 +103,7 @@ const cancelStatsViewportPin = statsViewportPin.cancel;
 
 
 // Speed slider mapping
-// The UI control is "Run state.settings.speed" (higher = faster). Internally we keep a per-step delay in milliseconds.
-// We use a hyperbolic mapping so the default value remains unchanged (value 300 -> 300 ms delay).
-const SPEED_REF_VALUE = 300;
-const SPEED_REF_DELAY_MS = 300;
-
-function delayFromSpeedSliderValue(raw) {
-  const v = Math.max(1, parseInt(raw, 10) || SPEED_REF_VALUE);
-  // delay decreases as v increases
-  return Math.max(0, Math.round((SPEED_REF_VALUE * SPEED_REF_DELAY_MS) / v));
-}
-
+// (see ./speedMapping.js for the shared UI<->delay transform)
 function refreshSpeedFromSlider() {
   state.settings.speed = delayFromSpeedSliderValue(speedSlider.value);
 }

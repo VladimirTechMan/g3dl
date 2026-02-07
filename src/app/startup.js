@@ -18,6 +18,7 @@ import {
 } from "./settings.js";
 
 import { isDebugEnabled } from "../util/debug.js";
+import { speedSliderValueFromDelayMs } from "./speedMapping.js";
 
 import { createGridSizeController } from "./gridSizeUi.js";
 import { createDensityController } from "./densityUi.js";
@@ -56,6 +57,56 @@ import { createRulesController } from "./rulesUi.js";
  * @property {(opts?: { showToastOnFailure?: boolean }) => Promise<boolean>} reset
  * @property {any} fullscreen
  */
+
+/**
+ * Seed DOM controls with the canonical defaults from {@link createAppState}.
+ *
+ * Why:
+ * - Avoids duplicated defaults between index.html and state.js.
+ * - Keeps defaults consistent when they change (humans and AI agents edit one place).
+ *
+ * URL query parameters (if present) will override these values immediately afterward.
+ *
+ * NOTE: This only seeds the controls whose defaults are currently defined in AppState
+ * (grid edge, Gen0 edge, Gen0 density, run speed). Other controls keep their HTML defaults.
+ *
+ * @param {DomCache} dom
+ * @param {any} state
+ */
+function seedDefaultSettingsControls(dom, state) {
+  const { speedSlider, sizeInput, initSizeInput, densitySlider, densityTip } = dom;
+
+  /**
+   * Clamp a numeric value to an <input> element's [min, max] attributes, if present.
+   * @param {number} n
+   * @param {HTMLInputElement} input
+   * @returns {number}
+   */
+  function clampToInputRange(n, input) {
+    const min = Number.isFinite(parseInt(input.min, 10)) ? parseInt(input.min, 10) : -Infinity;
+    const max = Number.isFinite(parseInt(input.max, 10)) ? parseInt(input.max, 10) : Infinity;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  if (speedSlider) {
+    const raw = speedSliderValueFromDelayMs(state.settings.speed);
+    speedSlider.value = String(clampToInputRange(raw, speedSlider));
+  }
+
+  if (sizeInput) {
+    sizeInput.value = String(clampToInputRange(state.settings.gridSize, sizeInput));
+  }
+
+  if (initSizeInput) {
+    initSizeInput.value = String(clampToInputRange(state.settings.initSize, initSizeInput));
+  }
+
+  if (densitySlider) {
+    const pct = Math.round(state.settings.density * 100);
+    densitySlider.value = String(clampToInputRange(pct, densitySlider));
+    if (densityTip) densityTip.textContent = densitySlider.value + "%";
+  }
+}
 
 /**
  * Perform post-WebGPU init startup work.
@@ -127,6 +178,9 @@ export async function runStartupSequence(deps) {
 
   // Keep the Gen0 edge input's HTML constraint in sync with the actual grid limit.
   if (initSizeInput) initSizeInput.max = String(maxGrid);
+
+  // Seed UI controls from AppState defaults (single source of truth).
+  seedDefaultSettingsControls(dom, state);
 
   // Debug UI is enabled via URL (e.g., ?debug or ?debug=1).
   const debugEnabled = isDebugEnabled();
@@ -224,12 +278,6 @@ export async function runStartupSequence(deps) {
 
   // Install event listeners once controllers exist.
   installUiBindings({ gridSizeUi, densityUi, rendererSettingsUi, rulesUi });
-
-  // Apply Settings values that do not have dedicated init paths.
-  // (Important for URL-restored colors/rules.)
-  state.settings.gridSize = parseInt(sizeInput.value, 10) || state.settings.gridSize;
-  state.settings.initSize =
-    (initSizeInput && parseInt(initSizeInput.value, 10)) || state.settings.initSize;
 
   // Now that grid edge is finalized, tighten the Gen0 edge max to match.
   if (initSizeInput) initSizeInput.max = String(state.settings.gridSize);
