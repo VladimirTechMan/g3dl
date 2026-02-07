@@ -1,4 +1,5 @@
 import { createThrottledControl } from "../ui/throttledControl.js";
+import { createContinuousInputController } from "../ui/continuousInput.js";
 
 /**
  * Small renderer-setting handlers.
@@ -44,10 +45,8 @@ export function createRendererSettingsHandlers(deps) {
     gridProjectionCheckbox,
   } = deps;
 
-  // Haze slider throttling.
-  // On some mobile browsers, rapid 'input' events can generate a high volume of
-  // WebGPU queue writes + render invalidations. Haze is purely visual, so we can
-  // safely coalesce updates during pointer drags.
+  // Haze slider: coalesce frequent 'input' events during pointer drags to keep the UI responsive.
+  // Haze is purely visual, so commit == preview.
   function clampHazeStrengthFromSlider() {
     if (!hazeSlider) return 0.0;
     const pct = parseInt(hazeSlider.value, 10);
@@ -62,37 +61,21 @@ export function createRendererSettingsHandlers(deps) {
     requestRender();
   }
 
-  const hazeControl = createThrottledControl({
+  const hazeControl = createContinuousInputController({
+    input: hazeSlider,
     getValue: clampHazeStrengthFromSlider,
     applyPreview: applyHazeStrength,
-    // Haze is purely visual, so commit == preview.
     applyCommit: applyHazeStrength,
-    // ~30Hz during pointer drags.
     previewIntervalMs: 33,
-    // Suppress duplicate commit events (pointerup-global + native 'change').
     commitSuppressMs: 250,
     captureTarget: hazeSlider,
   });
 
-  function handleHazePreview() {
-    hazeControl.preview();
-  }
-
-  function handleHazeChange() {
-    hazeControl.commit();
-  }
-
-  function handleHazePointerDown(e) {
-    hazeControl.beginSession(e);
-  }
-
-  function handleHazePointerUpGlobal() {
-    hazeControl.endSession(true);
-  }
-
-  function handleHazeBlur() {
-    hazeControl.endSession(true);
-  }
+  const handleHazePreview = hazeControl.handlePreview;
+  const handleHazeChange = hazeControl.handleChange;
+  const handleHazePointerDown = hazeControl.handlePointerDown;
+  const handleHazePointerUpGlobal = hazeControl.handlePointerUpGlobal;
+  const handleHazeBlur = hazeControl.handleBlur;
 
   function applyCellColors() {
     const renderer = getRenderer();

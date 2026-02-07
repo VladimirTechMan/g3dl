@@ -1,14 +1,19 @@
 /**
  * Density (Gen0 fill) UI controller.
  *
- * Responsibilities:
- * - tooltip preview while dragging
- * - robust commit on pointer release across browsers (including global pointerup)
- * - debouncing double-fire cases where pointerup + native 'change' both commit
+ * This controller now delegates continuous slider interaction mechanics to the shared
+ * {@link createContinuousInputController} helper:
+ * - pointer capture + global pointerup robustness
+ * - duplicate commit suppression
+ * - tooltip ("tip") lifecycle (show during drag, hide after release)
  *
- * This module is intentionally stateful (it tracks pointer-drag lifecycle)
- * but does not own any event listeners. It only exposes handlers.
+ * The domain-specific behavior stays here:
+ * - density is stored in state.settings.density (0.0..1.0)
+ * - applying the new density requires a reset, but only when stopped at generation 0
+ * - on failure, revert the UI and attempt recovery reset
  */
+
+import { createContinuousInputController } from "../ui/continuousInput.js";
 
 /**
  * @typedef {Object} DensityControllerDeps
@@ -31,63 +36,26 @@
 export function createDensityController(deps) {
   const { densitySlider, densityTip, state, toast, uiMsg, reset } = deps;
 
-  // Local UI state for robust tooltip teardown across pointer events.
-  let densityDragActive = false;
-
-  // Debounce identical commits (pointerup-global + native 'change' double-fire).
-  let lastDensityCommitPct = null;
-  let lastDensityCommitTimeMs = 0;
-
   /**
-   * Schedule hiding the Gen0 density tooltip.
-   * @param {number} delayMs
+   * Commit a new density percentage (integer 0..100).
+   *
+   * This is invoked on slider release. It may be called multiple times by some engines
+   * (pointerup-global + native 'change'); duplicate suppression is handled by the shared helper.
+   *
+   * @param {number} sliderPct
    */
-  function scheduleDensityTipHide(delayMs) {
-    if (!densityTip) return;
-    clearTimeout(densityTip.hideTimeout);
-    densityTip.hideTimeout = setTimeout(() => {
-      densityTip.classList.remove("visible");
-    }, delayMs);
-  }
-
-  /**
-   * Preview state.settings.density value while dragging (show tooltip only).
-   */
-  function handleDensityPreview() {
-    if (!densitySlider || !densityTip) return;
-
-    const previewValue = parseInt(densitySlider.value, 10);
-
-    // Keep tip visible while the user is interacting with the slider.
-    // (If a previous release scheduled a hide timeout, cancel it.)
-    clearTimeout(densityTip.hideTimeout);
-
-    densityTip.textContent = previewValue + "%";
-    densityTip.classList.add("visible");
-  }
-
-  /**
-   * Handle state.settings.density slider change (on release).
-   */
-  async function handleDensityChange() {
-    if (!densitySlider || !densityTip) return;
-
-    const prevDensity = state.settings.density;
-
-    const sliderPct = parseInt(densitySlider.value, 10);
+  async function commitDensityPct(sliderPct) {
+    if (!densitySlider) return;
     if (!Number.isFinite(sliderPct)) return;
 
-    const now = performance.now();
-    if (lastDensityCommitPct === sliderPct && now - lastDensityCommitTimeMs < 250) {
-      return;
-    }
-    lastDensityCommitPct = sliderPct;
-    lastDensityCommitTimeMs = now;
+    const prevDensity = state.settings.density;
+    const prevPct = Math.round(prevDensity * 100);
+
+    // Avoid expensive no-op commits (and avoid spurious toasts).
+    if (sliderPct === prevPct) return;
 
     state.settings.density = sliderPct / 100;
-    densityTip.textContent = Math.round(state.settings.density * 100) + "%";
-
-    scheduleDensityTipHide(1000);
+    if (densityTip) densityTip.textContent = sliderPct + "%";
 
     // Apply immediately only when the simulation is stopped at generation 0.
     // Otherwise, keep the new setting and apply it on the next explicit reset.
@@ -104,9 +72,8 @@ export function createDensityController(deps) {
 
     // Revert to previous value on failure.
     state.settings.density = prevDensity;
-    const prevPct = Math.round(prevDensity * 100);
     densitySlider.value = String(prevPct);
-    densityTip.textContent = prevPct + "%";
+    if (densityTip) densityTip.textContent = prevPct + "%";
 
     toast.show({
       kind: "warn",
@@ -122,86 +89,52 @@ export function createDensityController(deps) {
     }
   }
 
-  /**
-   * Mark density slider interaction as active (for robust tooltip teardown).
-   */
-  function handleDensityPointerDown(e) {
-    if (!densitySlider || !densityTip) return;
+  const control = createContinuousInputController({
+    input: densitySlider,
+    tip: densityTip,
+    captureTarget: densitySlider,
 
-    densityDragActive = true;
+    // Slider stores percent as an integer (e.g. "15" => 15%).
+    getValue: () => {
+      if (!densitySlider) return 0;
+      return parseInt(densitySlider.value, 10);
+    },
 
-    // Attempt pointer capture so that some engines will still dispatch pointerup
-    // to the slider even if the pointer leaves the control while dragging.
-    try {
-      if (densitySlider.setPointerCapture && e && e.pointerId != null) {
-        densitySlider.setPointerCapture(e.pointerId);
-      }
-    } catch (_) {
-      // Ignore capture failures (unsupported or blocked by the element).
-    }
+    // Tooltip text is "NN%".
+    formatTip: (pct) => `${pct}%`,
 
-    clearTimeout(densityTip.hideTimeout);
-    densityTip.classList.add("visible");
-  }
+    // Density preview is purely UI (tooltip), so do not throttle.
+    previewIntervalMs: 0,
 
-  /**
-   * Commit density if the slider value differs from state, then schedule tip hide.
-   */
-  function handleDensityPointerUpGlobal() {
-    if (!densitySlider || !densityTip) return;
-    if (!densityTip.classList.contains("visible")) return;
+    // Some engines double-fire commits on pointerup + change.
+    commitSuppressMs: 250,
 
-    densityDragActive = false;
+    // Decide whether pointerup-global should commit:
+    // only commit when the slider differs from the current committed state.
+    getCommittedValue: () => Math.round(state.settings.density * 100),
+    equals: (a, b) => a === b,
 
-    const sliderPct = parseInt(densitySlider.value, 10);
-    const statePct = Math.round(state.settings.density * 100);
+    // Tooltip hide policy mirrors the legacy behavior.
+    tipHide: {
+      afterCommitMs: 1000,
+      afterReleaseMs: 600,
+      afterBlurMs: 250,
+      afterMouseLeaveMs: 250,
+    },
 
-    // If the release did not trigger a native 'change' (browser quirk), commit here.
-    if (Number.isFinite(sliderPct) && sliderPct !== statePct) {
-      void handleDensityChange();
-      return;
-    }
+    // The helper updates the tooltip; no extra preview work needed.
+    applyPreview: () => {},
 
-    scheduleDensityTipHide(600);
-  }
-
-  /**
-   * Hide the density tip on focus loss (keyboard navigation, clicking elsewhere).
-   */
-  function handleDensityBlur() {
-    if (!densityTip) return;
-
-    densityDragActive = false;
-
-    if (!densityTip.classList.contains("visible")) return;
-
-    scheduleDensityTipHide(250);
-  }
-
-  /**
-   * Hide the density tip when the pointer leaves the slider (desktop hover case).
-   */
-  function handleDensityMouseLeave() {
-    if (!densityTip) return;
-
-    if (densityDragActive) return;
-    if (!densityTip.classList.contains("visible")) return;
-
-    scheduleDensityTipHide(250);
-  }
-
-  function destroy() {
-    if (!densityTip) return;
-    clearTimeout(densityTip.hideTimeout);
-  }
+    applyCommit: (pct) => commitDensityPct(pct),
+  });
 
   return {
-    handleDensityPreview,
-    handleDensityChange,
-    handleDensityPointerDown,
-    handleDensityPointerUpGlobal,
-    handleDensityBlur,
-    handleDensityMouseLeave,
-    destroy,
+    handleDensityPreview: control.handlePreview,
+    handleDensityChange: control.handleChange,
+    handleDensityPointerDown: control.handlePointerDown,
+    handleDensityPointerUpGlobal: control.handlePointerUpGlobal,
+    handleDensityBlur: control.handleBlur,
+    handleDensityMouseLeave: control.handleMouseLeave,
+    destroy: control.destroy,
   };
 }
