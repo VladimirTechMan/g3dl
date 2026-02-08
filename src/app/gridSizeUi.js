@@ -10,7 +10,7 @@
  * This module is intentionally deterministic and does not register any event listeners.
  */
 
-import { blurOnEnter, setInvalid } from "./inputUi.js";
+import { blurOnEnter, setInvalid } from "./domHelpers.js";
 
 /**
  * @typedef {Object} GridSizeControllerDeps

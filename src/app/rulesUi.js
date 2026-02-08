@@ -13,7 +13,7 @@
 
 import { RULE_PRESETS, normalizeRule } from "./settings.js";
 import { parseRuleNumbers } from "./ruleParse.js";
-import { setInvalid } from "./inputUi.js";
+import { setInvalid } from "./domHelpers.js";
 
 /**
  * @typedef {import("../gpu/renderer.js").WebGPURenderer} WebGPURenderer
