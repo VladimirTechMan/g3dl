@@ -1,3 +1,30 @@
+/**
+ * WebGPURenderer — facade for all GPU state and operations.
+ *
+ * This class is the central hub of the GPU subsystem. It owns the WebGPU device,
+ * canvas context, buffers, pipelines, bind groups, and camera state. To keep the
+ * file manageable, most implementation is delegated to focused submodules:
+ *
+ *   renderer/lifecycle.js  – init, resize, destroy, device-lost recovery
+ *   renderer/render.js     – per-frame render pass encoding
+ *   renderer/step.js       – simulation step dispatch + grid randomization
+ *   renderer/aabb.js       – living-cell bounding-box readback (Screen show)
+ *   pipelines/compute.js   – compute pipeline factories (simulation, extract, init, AABB)
+ *   pipelines/render.js    – render pipeline factories (cells, grid projection, background)
+ *   resources/grid.js      – grid buffer allocation and sizing
+ *   resources/geometry.js  – cube geometry + grid projection instances
+ *   resources/frameUniforms.js – uniform buffer allocation + per-frame writes
+ *   resources/bindGroups.js – bind group (re)creation
+ *   readback.js            – async GPU→CPU readback ring for population stats
+ *   dataLayout.js          – JS↔WGSL buffer layout contract with static assertions
+ *   cameraControls.js      – orbit camera math (rotate, pan, zoom, inertia)
+ *
+ * These submodules receive the renderer instance (`r`) and mutate it directly.
+ * The renderer is therefore more of a "bag of GPU state" than a deeply
+ * encapsulated object — the encapsulation boundary is the module folder, not the
+ * class itself.
+ */
+
 import { G3DL_LAYOUT } from "./dataLayout.js";
 import { MAX_PACKED_GRID_SIZE } from "./constants.js";
 import {
