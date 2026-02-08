@@ -544,7 +544,14 @@ export class WebGPURenderer {
         this._createGridProjectionPipeline(),
         this._createBackgroundPipeline(),
       ]);
-    })();
+    })().finally(() => {
+      // Clear the cached promise on failure so a subsequent call can retry
+      // (e.g. after a device-lost recovery).  On success the early-return
+      // guards inside each pipeline factory make the retry a no-op.
+      if (!this.computePipeline || !this.renderPipeline) {
+        this._ensureEssentialPipelinesPromise = null;
+      }
+    });
     return this._ensureEssentialPipelinesPromise;
   }
 
