@@ -24,6 +24,7 @@ import { createGridSizeController } from "./gridSizeUi.js";
 import { createDensityController } from "./densityUi.js";
 import { createRendererSettingsHandlers } from "./rendererSettingsUi.js";
 import { createRulesController } from "./rulesUi.js";
+import { showNotSupportedMessage } from "../ui/overlays.js";
 
 /**
  * @typedef {import("../ui/dom.js").DomCache} DomCache
@@ -47,7 +48,6 @@ import { createRulesController } from "./rulesUi.js";
  *   rendererSettingsUi: any,
  *   rulesUi: any,
  * }) => void} installUiBindings
- * @property {(reason: any) => void} showNotSupportedMessage
  * @property {{ show: (o: { kind: "info"|"warn"|"error"|"success", message: string }) => void }} toast
  * @property {any} uiMsg
  * @property {any} logMsg
@@ -135,7 +135,6 @@ export async function runStartupSequence(deps) {
     clearStickyError,
     refreshSpeedFromSlider,
     installUiBindings,
-    showNotSupportedMessage,
     toast,
     uiMsg,
     logMsg,

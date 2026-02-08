@@ -25,6 +25,7 @@ import { isDebugEnabled } from "../util/debug.js";
 import { LOG_MSG } from "../util/messages.js";
 import { UI_MSG } from "./messages.js";
 import { delayFromSpeedSliderValue } from "./speedMapping.js";
+import { hideLoadingOverlay, showNotSupportedMessage } from "../ui/overlays.js";
 
 // DOM Elements (cached)
 const {
@@ -552,19 +553,6 @@ function handleStepError(err) {
 
 
 /**
- * Fade out and remove the initial loading overlay, if present.
- */
-function hideLoadingOverlay() {
-  const overlay = document.getElementById("loadingOverlay");
-  if (!overlay) return;
-  if (overlay.classList.contains("is-hidden")) return;
-
-  overlay.classList.add("is-hidden");
-  // Remove from the DOM after the fade to avoid blocking focus/interaction.
-  window.setTimeout(() => overlay.remove(), 220);
-}
-
-/**
  * Initialize the application
  */
 async function init() {
@@ -652,7 +640,6 @@ async function init() {
     waitForIdle,
     reset,
     installUiBindings,
-    showNotSupportedMessage,
   });
 
   if (!startup) return;
@@ -663,18 +650,6 @@ async function init() {
   ctx.ui.rulesUi = startup.rulesUi;
 
   hideLoadingOverlay();
-}
-
-/**
- * Show message when WebGPU is not available
- */
-function showNotSupportedMessage(reason) {
-  hideLoadingOverlay();
-  const overlay = document.getElementById("webgpu-not-supported");
-  if (!overlay) return;
-  const reasonEl = document.getElementById("not-supported-reason");
-  if (reasonEl) reasonEl.textContent = String(reason || "WebGPU initialization failed.");
-  overlay.classList.remove("hidden");
 }
 
 /**
