@@ -5,19 +5,18 @@
  * app-provided handlers. It does not manage panels/overlays.
  */
 
-import { on } from "../util/events.js";
-
 /**
  * @param {import("./dom.js").DomCache} dom
  * @param {any} handlers
  * @returns {{ destroy: () => void }}
  */
 export function bindControls(dom, handlers) {
-  /** @type {Array<() => void>} */
-  const unsubs = [];
+  const ac = new AbortController();
+  const { signal } = ac;
+
   const add = (el, type, fn, opts) => {
     if (!el) return;
-    unsubs.push(on(el, type, fn, opts));
+    el.addEventListener(type, fn, { ...opts, signal });
   };
 
   // Prefer a single access path for cached elements.
@@ -138,11 +137,7 @@ export function bindControls(dom, handlers) {
 
   return {
     destroy() {
-      for (const u of unsubs.splice(0)) {
-        try {
-          u();
-        } catch (_) {}
-      }
+      ac.abort();
     },
   };
 }
