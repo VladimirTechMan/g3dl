@@ -24,6 +24,23 @@
         </div>
       </div>
 
+      <!-- Error overlay (hidden; shown by JS when WebGPU is unavailable). -->
+      <div id="webgpu-not-supported" class="not-supported-overlay hidden" role="alert">
+        <div class="not-supported-card">
+          <h2>WebGPU Required</h2>
+          <p id="not-supported-reason">WebGPU initialization failed.</p>
+          <p class="not-supported-note">
+            This app requires WebGPU and does not fall back to WebGL.
+            Use a browser where WebGPU is available and enabled.
+          </p>
+          <ul class="not-supported-hints">
+            <li>Update to a recent version of your browser.</li>
+            <li>Ensure WebGPU is enabled in the browser's settings/flags (if applicable).</li>
+            <li>If you're in a private window or restrictive environment, try a normal window/profile.</li>
+          </ul>
+        </div>
+      </div>
+
       <div id="ui-overlay">
         <div id="infoPanel" class="glass-chrome" aria-label="Links">
           <button

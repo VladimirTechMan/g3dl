@@ -670,57 +670,11 @@ async function init() {
  */
 function showNotSupportedMessage(reason) {
   hideLoadingOverlay();
-  // Ensure we only ever have one overlay.
-  const existing = document.getElementById("webgpu-not-supported");
-  if (existing) existing.remove();
-
-  const overlay = document.createElement("div");
-  overlay.id = "webgpu-not-supported";
-  overlay.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.9); color: white; display: flex;
-    align-items: center; justify-content: center; font-size: 18px;
-    font-family: system-ui; text-align: center; padding: 20px; z-index: 10000;
-  `;
-
-  const card = document.createElement("div");
-  card.style.maxWidth = "640px";
-
-  const title = document.createElement("h2");
-  title.textContent = "WebGPU Required";
-
-  const details = document.createElement("p");
-  details.textContent = String(reason || "WebGPU initialization failed.");
-
-  const note = document.createElement("p");
-  note.style.marginTop = "18px";
-  note.style.color = "#aaa";
-  note.textContent =
-    "This app requires WebGPU and does not fall back to WebGL. Use a browser where WebGPU is available and enabled.";
-
-  const hints = document.createElement("ul");
-  hints.style.textAlign = "left";
-  hints.style.display = "inline-block";
-  hints.style.color = "#aaa";
-  hints.style.marginTop = "10px";
-  hints.style.lineHeight = "1.4";
-
-  for (const text of [
-    "Update to a recent version of your browser.",
-    "Ensure WebGPU is enabled in the browser’s settings/flags (if applicable).",
-    "If you’re in a private window or restrictive environment, try a normal window/profile.",
-  ]) {
-    const li = document.createElement("li");
-    li.textContent = text;
-    hints.appendChild(li);
-  }
-
-  card.appendChild(title);
-  card.appendChild(details);
-  card.appendChild(note);
-  card.appendChild(hints);
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
+  const overlay = document.getElementById("webgpu-not-supported");
+  if (!overlay) return;
+  const reasonEl = document.getElementById("not-supported-reason");
+  if (reasonEl) reasonEl.textContent = String(reason || "WebGPU initialization failed.");
+  overlay.classList.remove("hidden");
 }
 
 /**

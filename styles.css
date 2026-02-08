@@ -314,6 +314,39 @@ body {
   }
 }
 
+/* Not-supported error overlay */
+.not-supported-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 20px;
+  z-index: 10000;
+}
+
+.not-supported-card {
+  max-width: 640px;
+}
+
+.not-supported-note {
+  margin-top: 18px;
+  color: #aaa;
+}
+
+.not-supported-hints {
+  text-align: left;
+  display: inline-block;
+  color: #aaa;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
 /* Header */
 #header {
   position: absolute;
