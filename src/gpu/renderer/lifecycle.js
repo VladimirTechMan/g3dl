@@ -342,9 +342,6 @@ export function destroyRenderer(r) {
   r.extractBindGroups = [null, null];
   r.initBindGroups = [null, null];
 
-  try {
-    r._shaderModuleCache.clear();
-  } catch (_) {}
   r._ensureEssentialPipelinesPromise = null;
   r._ensureAabbPipelinesPromise = null;
 

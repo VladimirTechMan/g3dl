@@ -17,7 +17,7 @@ import { G3DL_SHADERS } from "../shaders.js";
 export async function createSimulationPipeline(r) {
   if (r.computePipeline) return r.computePipeline;
   const code = G3DL_SHADERS.simulation({ workgroupSize: r.workgroupSize });
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.computePipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: mod, entryPoint: "main" },
@@ -34,7 +34,7 @@ export async function createSimulationPipeline(r) {
 export async function createExtractPipeline(r) {
   if (r.extractPipeline) return r.extractPipeline;
   const code = G3DL_SHADERS.extract({ workgroupSize: r.workgroupSize });
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.extractPipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: mod, entryPoint: "main" },
@@ -51,7 +51,7 @@ export async function createExtractPipeline(r) {
 export async function createInitPipeline(r) {
   if (r.initPipeline) return r.initPipeline;
   const code = G3DL_SHADERS.init({ workgroupSize: r.workgroupSize });
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.initPipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: mod, entryPoint: "main" },
@@ -68,7 +68,7 @@ export async function createInitPipeline(r) {
 export async function createDrawArgsPipeline(r) {
   if (r.drawArgsPipeline) return r.drawArgsPipeline;
   const code = G3DL_SHADERS.drawArgs();
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.drawArgsPipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: mod, entryPoint: "main" },
@@ -90,14 +90,14 @@ export async function createAabbPipelines(r) {
   const WG = r.aabbWorkgroupSize;
 
   const aabbCode = G3DL_SHADERS.aabb({ aabbWorkgroupSize: WG });
-  const aabbMod = r._getShaderModule(aabbCode);
+  const aabbMod = r.device.createShaderModule({ code: aabbCode });
   r.aabbPipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: aabbMod, entryPoint: "main" },
   });
 
   const argsCode = G3DL_SHADERS.aabbArgs({ aabbWorkgroupSize: WG });
-  const argsMod = r._getShaderModule(argsCode);
+  const argsMod = r.device.createShaderModule({ code: argsCode });
   r.aabbArgsPipeline = await r._createComputePipeline({
     layout: "auto",
     compute: { module: argsMod, entryPoint: "main" },

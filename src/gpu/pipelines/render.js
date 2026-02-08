@@ -18,7 +18,7 @@ import { rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl } 
 export async function createCellsRenderPipeline(r) {
   if (r.renderPipeline) return r.renderPipeline;
   const code = G3DL_SHADERS.render();
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.renderPipeline = await r._createRenderPipeline({
     layout: "auto",
     vertex: {
@@ -59,7 +59,7 @@ export async function createGridProjectionPipeline(r) {
   if (r.gridProjPipeline) return r.gridProjPipeline;
 
   const code = G3DL_SHADERS.gridProjection();
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
 
   r.gridProjPipeline = await r._createRenderPipeline({
     layout: "auto",
@@ -134,7 +134,7 @@ export async function createGridProjectionPipeline(r) {
 export async function createBackgroundPipeline(r) {
   if (r.bgPipeline) return r.bgPipeline;
   const code = G3DL_SHADERS.background();
-  const mod = r._getShaderModule(code);
+  const mod = r.device.createShaderModule({ code });
   r.bgPipeline = await r._createRenderPipeline({
     layout: "auto",
     vertex: { module: mod, entryPoint: "vs" },

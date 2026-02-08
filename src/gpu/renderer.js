@@ -188,8 +188,6 @@ export class WebGPURenderer {
     this._caps = {
       isCoarsePointer: false,
     };
-    /** @type {Map<string, GPUShaderModule>} */
-    this._shaderModuleCache = new Map();
     this._ensureEssentialPipelinesPromise = null;
     this._ensureAabbPipelinesPromise = null;
 
@@ -498,19 +496,6 @@ export class WebGPURenderer {
     let p = 1;
     while (p << 1 <= cap) p <<= 1;
     return p;
-  }
-
-  /**
-   * Cache shader modules by WGSL source to avoid duplicate compilation work.
-   * @param {string} code WGSL source
-   * @returns {GPUShaderModule}
-   */
-  _getShaderModule(code) {
-    const cached = this._shaderModuleCache.get(code);
-    if (cached) return cached;
-    const mod = this.device.createShaderModule({ code });
-    this._shaderModuleCache.set(code, mod);
-    return mod;
   }
 
   /**
