@@ -27,6 +27,18 @@ export function createRenderUniformBuffer(r) {
   });
 }
 
+/**
+ * Allocate the background uniform buffer used by the background gradient pipeline.
+ *
+ * @param {import("../renderer.js").WebGPURenderer} r
+ */
+export function createBgUniformBuffer(r) {
+  r.bgUniformBuffer = r._createBuffer("bgUniformBuffer", {
+    size: G3DL_LAYOUT.BG_UNIFORMS.DATA_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+}
+
 
 /**
  * Updates the render uniform buffer (camera, colors, lantern parameters, time).

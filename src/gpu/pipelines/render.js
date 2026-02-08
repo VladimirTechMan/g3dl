@@ -1,4 +1,3 @@
-import { G3DL_LAYOUT } from "../dataLayout.js";
 import { G3DL_SHADERS } from "../shaders.js";
 import { rebuildGridProjectionInstances as rebuildGridProjectionInstancesImpl } from "../resources/geometry.js";
 
@@ -150,14 +149,6 @@ export async function createBackgroundPipeline(r) {
       depthCompare: "always",
     },
   });
-
-  // Background uniform buffer is part of the background feature set; allocate here.
-  if (!r.bgUniformBuffer) {
-    r.bgUniformBuffer = r._createBuffer("bgUniformBuffer", {
-      size: G3DL_LAYOUT.BG_UNIFORMS.DATA_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-  }
 
   return r.bgPipeline;
 }
