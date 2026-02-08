@@ -11,17 +11,7 @@
  */
 
 /**
- * @typedef {Object} ScreenShowPass
- * @property {number} startMs
- * @property {number} endMs
- * @property {number} fadeInEndMs
- * @property {number} fadeOutStartMs
- * @property {number} yaw0
- * @property {number} yaw1
- * @property {number} pitch0
- * @property {number} pitch1
- * @property {number} dist0
- * @property {number} dist1
+ * @typedef {import("./screenshow/controller.js").ScreenShowPass} ScreenShowPass
  */
 
 /**

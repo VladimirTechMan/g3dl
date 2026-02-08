@@ -148,6 +148,26 @@ const EYE_CENTER_GUARD_FLY_THRESHOLD = 0.35;
  */
 
 /**
+ * Shape of a single camera pass created by {@link ScreenShowController#_startPass}.
+ *
+ * @typedef {Object} ScreenShowPass
+ * @property {number}              startMs      - Wall-clock time the pass began (ms).
+ * @property {number}              durationMs   - Total pass length (ms).
+ * @property {number}              yaw0         - Starting yaw around focus center (rad).
+ * @property {number}              yawDelta     - Total yaw drift over the pass (rad).
+ * @property {number}              pitch0       - Starting pitch (rad).
+ * @property {number}              pitch1       - Ending pitch (rad).
+ * @property {number}              dist0        - Starting distance from focus center.
+ * @property {number}              dist1        - Ending distance from focus center.
+ * @property {number}              roll0        - Starting roll (rad).
+ * @property {number}              roll1        - Ending roll (rad).
+ * @property {number}              phase        - Random phase offset for roll oscillation.
+ * @property {number}              targetPhase  - Random phase offset for target drift.
+ * @property {"fadingIn"|"running"} state       - Current lifecycle stage.
+ * @property {number}              fadeEndMs    - Wall-clock time fade-in completes (ms, 0 if immediate).
+ */
+
+/**
  * Screen show orchestrates camera overrides while the simulation is running.
  * When the simulation is paused, Screen show does not animate the camera and returns navigation control to the user.
  */
