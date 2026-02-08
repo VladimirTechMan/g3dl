@@ -20,7 +20,6 @@ import {
   createGridBuffers as createGridBuffersImpl,
   destroyGridResources as destroyGridResourcesImpl,
 } from "./resources/grid.js";
-import { createUniformBuffer as createUniformBufferImpl } from "./resources/uniforms.js";
 import {
   shouldReadbackStats as shouldReadbackStatsImpl,
   acquireReadbackSlot as acquireReadbackSlotImpl,
@@ -29,7 +28,6 @@ import {
 } from "./readback.js";
 import { rebuildBindGroups as rebuildBindGroupsImpl } from "./resources/bindGroups.js";
 import { BufferManager } from "./util/bufferManager.js";
-import { hexToRgb01 } from "./util/color.js";
 import { initRenderer, resizeRenderer, destroyRenderer } from "./renderer/lifecycle.js";
 import { renderFrame as renderFrameImpl } from "./renderer/render.js";
 import {
@@ -37,7 +35,6 @@ import {
   randomizeGrid as randomizeGridImpl,
 } from "./renderer/step.js";
 import { requestLivingCellsAABB as requestLivingCellsAABBImpl } from "./renderer/aabb.js";
-import { maybePace as maybePaceImpl } from "./renderer/pacing.js";
 import {
   ensureCameraScratch,
   syncCameraMatrix,
@@ -56,6 +53,25 @@ import {
 
 import { warn } from "../util/log.js";
 import { LOG_MSG } from "../util/messages.js";
+
+/**
+ * Try to parse a CSS hex color ("#rrggbb" or "rrggbb") into 0..1 sRGB floats.
+ *
+ * Defensive parsing: if the input is malformed, we return null rather than
+ * producing NaNs that could leak into uniform buffers.
+ *
+ * @param {unknown} hex
+ * @returns {null | [number, number, number]}
+ */
+function tryParseHexColor01(hex) {
+  const t = String(hex ?? "").trim();
+  const s = t.startsWith("#") ? t.slice(1) : t;
+  if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+  const r = parseInt(s.slice(0, 2), 16) / 255;
+  const g = parseInt(s.slice(2, 4), 16) / 255;
+  const b = parseInt(s.slice(4, 6), 16) / 255;
+  return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) ? [r, g, b] : null;
+}
 
 
 /**
@@ -689,10 +705,6 @@ export class WebGPURenderer {
     return await requestLivingCellsAABBImpl(this);
   }
 
-  async maybePace(force = false) {
-    return await maybePaceImpl(this, force);
-  }
-
   async _createCellsRenderPipeline() {
     return await createCellsRenderPipeline(this);
   }
@@ -718,10 +730,6 @@ export class WebGPURenderer {
 
   _createGridBuffers() {
     createGridBuffersImpl(this);
-  }
-
-  _createUniformBuffer() {
-    createUniformBufferImpl(this);
   }
 
   setGridSize(size) {
@@ -766,10 +774,12 @@ export class WebGPURenderer {
   setSurviveRule(c) {
     this.surviveRule = 0;
     for (const n of c) if (n >= 0 && n <= 26) this.surviveRule |= 1 << n;
+    this.surviveRule >>>= 0;
   }
   setBirthRule(c) {
     this.birthRule = 0;
     for (const n of c) if (n >= 0 && n <= 26) this.birthRule |= 1 << n;
+    this.birthRule >>>= 0;
   }
   setToroidal(e) {
     this.toroidal = e;
@@ -792,12 +802,34 @@ export class WebGPURenderer {
   }
 
   setCellColors(topHex, bottomHex) {
-    this.cellColorTop = hexToRgb01(topHex);
-    this.cellColorBottom = hexToRgb01(bottomHex);
+    const top = tryParseHexColor01(topHex);
+    const bottom = tryParseHexColor01(bottomHex);
+
+    // Warn only when malformed input would otherwise feed NaNs into uniforms.
+    if (!top && String(topHex ?? "").trim() !== "") {
+      warn("Invalid cell top color:", topHex);
+    }
+    if (!bottom && String(bottomHex ?? "").trim() !== "") {
+      warn("Invalid cell bottom color:", bottomHex);
+    }
+
+    if (top) this.cellColorTop = top;
+    if (bottom) this.cellColorBottom = bottom;
   }
+
   setBackgroundColors(topHex, bottomHex) {
-    this.bgColorTop = hexToRgb01(topHex);
-    this.bgColorBottom = hexToRgb01(bottomHex);
+    const top = tryParseHexColor01(topHex);
+    const bottom = tryParseHexColor01(bottomHex);
+
+    if (!top && String(topHex ?? "").trim() !== "") {
+      warn("Invalid background top color:", topHex);
+    }
+    if (!bottom && String(bottomHex ?? "").trim() !== "") {
+      warn("Invalid background bottom color:", bottomHex);
+    }
+
+    if (top) this.bgColorTop = top;
+    if (bottom) this.bgColorBottom = bottom;
   }
 
   /**

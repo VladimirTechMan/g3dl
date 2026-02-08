@@ -1,6 +1,7 @@
 import { G3DL_LAYOUT } from "../dataLayout.js";
 import { MAX_PACKED_GRID_SIZE } from "../constants.js";
 import { destroyGridResources as destroyGridResourcesImpl } from "../resources/grid.js";
+import { createRenderUniformBuffer } from "../resources/frameUniforms.js";
 import { debugLog, debugWarn, error } from "../../util/log.js";
 import { LOG_MSG } from "../../util/messages.js";
 import { getCaps } from "../../util/caps.js";
@@ -205,7 +206,7 @@ export async function initRenderer(r) {
   // Kick off pipeline compilation early, while we allocate buffers.
   const pipelinesPromise = r._ensureEssentialPipelines();
   r._createCubeGeometry();
-  r._createUniformBuffer();
+  createRenderUniformBuffer(r);
   r._createGridBuffers();
   r._createDrawArgsResources();
   // Wait for essential pipelines to be ready before building bind groups.

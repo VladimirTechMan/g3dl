@@ -10,6 +10,25 @@ import { mat4LookAt, mat4Perspective } from "../../util/math3d.js";
  */
 
 /**
+ * Allocate the main render uniform buffer used by the cell render pipeline.
+ *
+ * We keep allocation here alongside updateFrameUniforms() because the buffer size
+ * and the layout-aware population logic are two halves of the same JS<->WGSL
+ * contract.
+ *
+ * @param {import("../renderer.js").WebGPURenderer} r
+ */
+export function createRenderUniformBuffer(r) {
+  r.uniformBuffer = r._createBuffer("uniformBuffer", {
+    // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 304 bytes),
+    // but we keep extra room to allow future expansion without reallocating.
+    size: 512,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+}
+
+
+/**
  * Updates the render uniform buffer (camera, colors, lantern parameters, time).
  *
  * @param {import("../renderer.js").WebGPURenderer} r
