@@ -315,8 +315,6 @@ function buildUrlWithSettings(dom, fallbacks) {
   const gridV = dom.sizeInput ? parseInt(dom.sizeInput.value, 10) : null;
   const gen0V = dom.initSizeInput ? parseInt(dom.initSizeInput.value, 10) : null;
 
-  // Drop legacy key (no longer supported)
-  params.delete("fog");
   const densV = dom.densitySlider ? parseInt(dom.densitySlider.value, 10) : null;
   const hazeV = dom.hazeSlider ? parseInt(dom.hazeSlider.value, 10) : null;
 

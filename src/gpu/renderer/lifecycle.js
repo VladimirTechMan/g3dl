@@ -85,10 +85,6 @@ export async function initRenderer(r) {
   // (We create several buffers immediately after this during init.)
   r._buffers.setDevice(r.device);
 
-  r._caps.pipelineAsync =
-    typeof r.device.createComputePipelineAsync === "function" &&
-    typeof r.device.createRenderPipelineAsync === "function";
-
   // Device loss can happen on mobile (backgrounding, memory pressure, driver reset).
   // Surface this to the app so it can stop the simulation and prompt the user.
   r.device.lost.then((info) => {

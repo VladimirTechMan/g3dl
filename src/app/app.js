@@ -348,8 +348,6 @@ function suspendForBackground(reason = "") {
   } catch (_) {
     // ignore
   }
-
-  void reason;
 }
 
 /**
@@ -391,8 +389,6 @@ function resumeFromBackground(reason = "") {
   if (shouldResumePlay && ctx.loop && !ctx.loop.isPlaying) {
     ctx.loop.startPlaying();
   }
-
-  void reason;
 }
 
 /**
@@ -955,10 +951,6 @@ function handleSpeedChange() {
   // If a step is in-flight, the new state.settings.speed will apply on the next scheduled tick.
   if (ctx.loop) ctx.loop.rescheduleNextTick();
 }
-
-/**
- * Main render loop
- */
 
 // Start the application
 init().catch((err) => {

@@ -89,12 +89,7 @@ export function createLoopHooks(deps) {
       if (ss) ss.onPlayStateChanged(playing);
     },
 
-    onAfterStep: ({ syncStats, changed }) => {
-      // Note: the params are kept to preserve the hook signature even if they are not
-      // used directly here.
-      void syncStats;
-      void changed;
-
+    onAfterStep: ({ syncStats: _syncStats, changed: _changed }) => {
       const r = getRenderer();
       if (!r) return { statsFresh: false, population: state.sim.population };
 

@@ -187,7 +187,6 @@ export class WebGPURenderer {
     // We prefer create*PipelineAsync() when available and cache shader modules by WGSL source.
     this._caps = {
       isCoarsePointer: false,
-      pipelineAsync: false,
     };
     /** @type {Map<string, GPUShaderModule>} */
     this._shaderModuleCache = new Map();
