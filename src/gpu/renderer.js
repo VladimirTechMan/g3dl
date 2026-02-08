@@ -53,20 +53,17 @@ import {
 
 import { warn } from "../util/log.js";
 import { LOG_MSG } from "../util/messages.js";
+import { parseHex6 } from "../util/color.js";
 
 /**
  * Try to parse a CSS hex color ("#rrggbb" or "rrggbb") into 0..1 sRGB floats.
- *
- * Defensive parsing: if the input is malformed, we return null rather than
- * producing NaNs that could leak into uniform buffers.
  *
  * @param {unknown} hex
  * @returns {null | [number, number, number]}
  */
 function tryParseHexColor01(hex) {
-  const t = String(hex ?? "").trim();
-  const s = t.startsWith("#") ? t.slice(1) : t;
-  if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+  const s = parseHex6(hex);
+  if (!s) return null;
   const r = parseInt(s.slice(0, 2), 16) / 255;
   const g = parseInt(s.slice(2, 4), 16) / 255;
   const b = parseInt(s.slice(4, 6), 16) / 255;

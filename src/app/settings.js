@@ -7,6 +7,8 @@
  * - Keep the UI controller code focused on interactions, not parsing.
  */
 
+import { parseHex6 } from "../util/color.js";
+
 /**
  * Rule preset definitions.
  *
@@ -128,11 +130,8 @@ function parseIntParam(v) {
  * @returns {string|null} A normalized "#rrggbb" string or null.
  */
 function normalizeHexColorParam(v) {
-  if (v == null) return null;
-  let s = String(v).trim();
-  if (s.startsWith("#")) s = s.slice(1);
-  if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
-  return "#" + s.toLowerCase();
+  const s = parseHex6(v);
+  return s ? "#" + s : null;
 }
 
 /**
