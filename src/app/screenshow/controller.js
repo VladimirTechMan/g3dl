@@ -13,7 +13,15 @@ const SCREENSHOW_PASS_MIN_MS = 15000;
 const SCREENSHOW_PASS_MAX_MS = 20000;
 
 /** Fade-out / fade-in duration between passes (ms). Read from CSS for consistency. */
-const SCREENSHOW_FADE_MS = readCssTimeMs("--screenshow-fade-ms", 900);
+let _screenshowFadeMsCached = 0;
+let _screenshowFadeMsRead = false;
+function getScreenshowFadeMs() {
+  if (!_screenshowFadeMsRead) {
+    _screenshowFadeMsCached = readCssTimeMs("--screenshow-fade-ms", 900);
+    _screenshowFadeMsRead = true;
+  }
+  return _screenshowFadeMsCached;
+}
 
 /**
  * Read a CSS time custom property (e.g. "900ms" or "0.9s") and return its value in milliseconds.
@@ -405,7 +413,7 @@ export class ScreenShowController {
 
     // Track due time so we can suspend/resume the timer during backgrounding.
     const nowMs = (performance && performance.now ? performance.now() : Date.now());
-    ss.pendingStartDueMs = nowMs + SCREENSHOW_FADE_MS;
+    ss.pendingStartDueMs = nowMs + getScreenshowFadeMs();
     ss.pendingStartRemainingMs = 0;
 
     // Ensure we don't reuse a stale pass.
@@ -440,7 +448,7 @@ export class ScreenShowController {
       ss.pendingStart = false;
       this._undimCanvas();
       this.requestRender(true);
-    }, SCREENSHOW_FADE_MS);
+    }, getScreenshowFadeMs());
   }
 
   /**
@@ -590,7 +598,7 @@ export class ScreenShowController {
       phase: randRange(0, Math.PI * 2),
       targetPhase: randRange(0, Math.PI * 2),
       state: immediate ? "running" : "fadingIn",
-      fadeEndMs: immediate ? 0 : nowMs + SCREENSHOW_FADE_MS,
+      fadeEndMs: immediate ? 0 : nowMs + getScreenshowFadeMs(),
     };
 
     ss.pass = pass;
