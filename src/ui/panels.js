@@ -31,7 +31,8 @@ export function createPanelManager(dom, handlers) {
 
   // No blocking overlay: keep the UI responsive while allowing canvas interaction.
   // We only capture wheel events to prevent page scroll and optionally route zoom to the scene.
-  let panelsWheelCaptureInstalled = false;
+  /** @type {AbortController|null} */
+  let wheelCaptureAc = null;
   const PANEL_SCROLL_SELECTOR = "#settings-panel, #help-panel";
 
   const PANELS = [
@@ -128,19 +129,20 @@ export function createPanelManager(dom, handlers) {
   function ensurePanelOverlay() {
     // Do NOT install a blocking overlay for pointer/touch; allow interaction with the canvas
     // while panels are open. Only capture wheel events.
-    if (!panelsWheelCaptureInstalled) {
+    if (!wheelCaptureAc) {
+      wheelCaptureAc = new AbortController();
       document.addEventListener("wheel", panelsOpenWheelCapture, {
         passive: false,
         capture: true,
+        signal: wheelCaptureAc.signal,
       });
-      panelsWheelCaptureInstalled = true;
     }
   }
 
   function removePanelOverlay() {
-    if (panelsWheelCaptureInstalled && !isAnyPanelOpen()) {
-      document.removeEventListener("wheel", panelsOpenWheelCapture, true);
-      panelsWheelCaptureInstalled = false;
+    if (wheelCaptureAc && !isAnyPanelOpen()) {
+      wheelCaptureAc.abort();
+      wheelCaptureAc = null;
     }
   }
 
@@ -251,7 +253,10 @@ export function createPanelManager(dom, handlers) {
   return {
     destroy() {
       ac.abort();
-      removePanelOverlay();
+      if (wheelCaptureAc) {
+        wheelCaptureAc.abort();
+        wheelCaptureAc = null;
+      }
     },
     closeSettingsAndHelpPanels,
     closeAllPanels,
