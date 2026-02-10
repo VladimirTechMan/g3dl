@@ -471,12 +471,12 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                 let color = mix(u.cellColorBottom.rgb, u.cellColorTop.rgb, t);
 
                 var o: VOut;
-                o.norm = (u.model * vec4<f32>(norm, 0.0)).xyz;
+                o.norm = norm;
                 o.local = pos + 0.5;
                 o.grid = off / u.gridSize;
                 o.cellColor = color;
                 o.phase = hash3(ux, uy, uz);
-                let viewPos = u.view * u.model * vec4<f32>(wpos, 1.0);
+                let viewPos = u.view * vec4<f32>(wpos, 1.0);
                 o.pos = u.projection * viewPos;
                 o.viewZ = -viewPos.z;
                 return o;
@@ -601,7 +601,7 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
 
             var o: VOut;
             o.local = l;
-            let viewPos = u.view * u.model * vec4<f32>(wpos, 1.0);
+            let viewPos = u.view * vec4<f32>(wpos, 1.0);
             o.pos = u.projection * viewPos;
             o.viewZ = -viewPos.z;
             return o;

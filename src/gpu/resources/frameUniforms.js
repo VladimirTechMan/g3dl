@@ -20,7 +20,7 @@ import { mat4LookAt, mat4Perspective } from "../../util/math3d.js";
  */
 export function createRenderUniformBuffer(r) {
   r.uniformBuffer = r._createBuffer("uniformBuffer", {
-    // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 304 bytes),
+    // G3DL_LAYOUT.UNIFORMS.DATA_BYTES is the active region (currently 240 bytes),
     // but we keep extra room to allow future expansion without reallocating.
     size: 512,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -137,7 +137,6 @@ function updateRenderUniforms(r) {
   // Matrices
   u.set(r._proj, uf.PROJECTION);
   u.set(r._view, uf.VIEW);
-  u.set(r._model, uf.MODEL);
 
   // cellColorTop vec4
   u[uf.CELL_COLOR_TOP + 0] = r.cellColorTop[0];

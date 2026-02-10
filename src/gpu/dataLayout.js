@@ -41,79 +41,77 @@ function isMultipleOf(n, m) {
 // ----------------------------
 //
 // WGSL: struct Uniforms
-// JS:  Float32Array (76 floats = 304 bytes) written at offset 0.
+// JS:  Float32Array (60 floats = 240 bytes) written at offset 0.
 //
 // We allocate a slightly larger uniform buffer (currently 512 bytes) to leave room for
 // future extensions without having to re-plumb buffer creation; the *active* region is
 // defined by DATA_BYTES below.
 const UNIFORMS = Object.freeze({
-  DATA_FLOATS: 76,
-  DATA_BYTES: 76 * 4,
+  DATA_FLOATS: 60,
+  DATA_BYTES: 60 * 4,
 
   // Offsets in 32-bit floats (Float32Array indices).
   F32: Object.freeze({
     PROJECTION: 0, // mat4x4<f32> (16 floats) => bytes 0..63
     VIEW: 16, // mat4x4<f32> (16 floats) => bytes 64..127
-    MODEL: 32, // mat4x4<f32> (16 floats) => bytes 128..191
 
-    CELL_COLOR_TOP: 48, // vec4<f32> => bytes 192..207
-    CELL_COLOR_BOTTOM: 52, // vec4<f32> => bytes 208..223
+    CELL_COLOR_TOP: 32, // vec4<f32> => bytes 128..143
+    CELL_COLOR_BOTTOM: 36, // vec4<f32> => bytes 144..159
     // vec4<f32>: xyz = camera direction, w = camera distance (|eye-target|)
-    CAMERA_DIR: 56, // bytes 224..239
+    CAMERA_DIR: 40, // bytes 160..175
 
-    GRID_SIZE: 60, // f32 => byte 240
-    CELL_SIZE: 61, // f32 => byte 244
+    GRID_SIZE: 44, // f32 => byte 176
+    CELL_SIZE: 45, // f32 => byte 180
     // Explicit padding to keep the scalar tail 16-byte aligned. Not read by shaders.
-    PAD0: 62,
-    PAD1: 63,
+    PAD0: 46,
+    PAD1: 47,
 
-    LANTERN_ENABLED: 64, // f32 => byte 256
-    LANTERN_STRENGTH: 65, // f32 => byte 260
+    LANTERN_ENABLED: 48, // f32 => byte 192
+    LANTERN_STRENGTH: 49, // f32 => byte 196
     // Explicit padding (16B alignment). Not read by shaders.
-    PAD2: 66,
-    PAD3: 67,
+    PAD2: 50,
+    PAD3: 51,
 
-    TIME: 68, // f32 => byte 272
+    TIME: 52, // f32 => byte 208
     // Explicit padding (16B alignment). Not read by shaders.
-    PAD4: 69,
-    PAD5: 70,
-    PAD6: 71,
+    PAD4: 53,
+    PAD5: 54,
+    PAD6: 55,
 
     // Haze: vec4<f32> (rgb + max mix amount). Appended after the existing
     // time padding so older captures remain easy to interpret.
-    HAZE: 72, // vec4<f32> => bytes 288..303
+    HAZE: 56, // vec4<f32> => bytes 224..239
   }),
 
   WGSL_STRUCT: `struct Uniforms {
-// 0..191 bytes
+// 0..127 bytes
 projection: mat4x4<f32>,
 view: mat4x4<f32>,
-model: mat4x4<f32>,
 
-// 192..239 bytes
+// 128..175 bytes
 cellColorTop: vec4<f32>,
 cellColorBottom: vec4<f32>,
 cameraDir: vec4<f32>,
 
-// 240..255 bytes (scalars + explicit padding to 16B boundary)
+// 176..191 bytes (scalars + explicit padding to 16B boundary)
 gridSize: f32,
 cellSize: f32,
 pad0: f32,
 pad1: f32,
 
-// 256..271 bytes
+// 192..207 bytes
 lanternEnabled: f32,
 lanternStrength: f32,
 pad2: f32,
 pad3: f32,
 
-// 272..287 bytes
+// 208..223 bytes
 time: f32,
 pad4: f32,
 pad5: f32,
 pad6: f32,
 
-// 288..303 bytes
+// 224..239 bytes
 haze: vec4<f32>
 }`,
 });
@@ -273,7 +271,7 @@ _pad1: u32,
 function assertStatic() {
   invariant(isMultipleOf(UNIFORMS.DATA_BYTES, 16), "Uniforms size must be multiple of 16 bytes.");
   invariant(isMultipleOf(BG_UNIFORMS.DATA_BYTES, 16), "BgUniforms size must be multiple of 16 bytes.");
-  invariant(UNIFORMS.DATA_BYTES === 304, "Uniforms bytes expected to be 304 (76 f32).");
+  invariant(UNIFORMS.DATA_BYTES === 240, "Uniforms bytes expected to be 240 (60 f32).");
   invariant(BG_UNIFORMS.DATA_BYTES === 48, "BgUniforms bytes expected to be 48 (12 f32).");
   invariant(PARAMS.SIM.BYTES === 32, "SIM params bytes expected to be 32 (8 u32).");
   invariant(PARAMS.EXTRACT.BYTES === 16, "EXTRACT params bytes expected to be 16 (4 u32).");

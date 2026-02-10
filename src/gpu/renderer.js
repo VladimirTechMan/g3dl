@@ -262,9 +262,6 @@ export class WebGPURenderer {
     this._bgUniforms = new Float32Array(G3DL_LAYOUT.BG_UNIFORMS.DATA_FLOATS);
     this._proj = new Float32Array(16);
     this._view = new Float32Array(16);
-    this._model = new Float32Array([
-      1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-    ]);
     this._renderUniforms = new Float32Array(G3DL_LAYOUT.UNIFORMS.DATA_FLOATS);
     this._eye = new Float32Array(3);
     this._target = new Float32Array(3);
