@@ -182,14 +182,13 @@ function updateRenderUniforms(r) {
   u[uf.PAD6] = 0.0;
 
   // Haze: rgb + strength.
-  // - Strength is a maximum blend amount in [0..0.30]. 0 disables the effect.
+  // - Strength is a maximum blend amount in [0..0.30], clamped by setHazeStrength().
   // - Haze color is derived from the background gradient midpoint so the effect
   //   remains visually consistent with user-selected background colors.
-  const hazeStrength = Math.max(0.0, Math.min(0.30, r.hazeStrength || 0.0));
   u[uf.HAZE + 0] = 0.5 * (r.bgColorTop[0] + r.bgColorBottom[0]);
   u[uf.HAZE + 1] = 0.5 * (r.bgColorTop[1] + r.bgColorBottom[1]);
   u[uf.HAZE + 2] = 0.5 * (r.bgColorTop[2] + r.bgColorBottom[2]);
-  u[uf.HAZE + 3] = hazeStrength;
+  u[uf.HAZE + 3] = r.hazeStrength;
 
   r._queueWriteF32(r.uniformBuffer, 0, u);
 }
