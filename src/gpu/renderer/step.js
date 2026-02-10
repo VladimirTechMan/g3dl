@@ -52,17 +52,14 @@ function writeStepParams(r) {
   r._computeParams[simP.BIRTH_RULE] = r.birthRule;
   r._computeParams[simP.TOROIDAL] = r.toroidal ? 1 : 0;
   r._computeParams[simP.CHANGE_ENABLED] = r.enableChangeDetection ? 1 : 0;
-  r._computeParams[simP.PAD0] = 0;
-  r._computeParams[simP.PAD1] = 0;
-  r._computeParams[simP.PAD2] = 0;
+  // PAD0..PAD2 are zero-initialized and never mutated.
   r._queueWriteU32(r.computeParamsBuffer, 0, r._computeParams);
 
   // Update per-step extraction parameters (maxCells affects draw clamping)
   const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
   r._extractParams[extP.GRID_SIZE] = r.gridSize;
   r._extractParams[extP.MAX_CELLS] = r.maxCells;
-  r._extractParams[extP.PAD0] = 0;
-  r._extractParams[extP.PAD1] = 0;
+  // PAD0..PAD1 are zero-initialized and never mutated.
   r._queueWriteU32(r.extractParamsBuffer, 0, r._extractParams);
 }
 
@@ -195,9 +192,7 @@ export async function randomizeGrid(r, density = 0.15, initSize = null) {
   r._initParams[initP.OFFSET] = off;
   r._initParams[initP.THRESHOLD] = threshold >>> 0;
   r._initParams[initP.SEED] = seed;
-  r._initParams[initP.PAD0] = 0;
-  r._initParams[initP.PAD1] = 0;
-  r._initParams[initP.PAD2] = 0;
+  // PAD0..PAD2 are zero-initialized and never mutated.
   r._queueWriteU32(r.initParamsBuffer, 0, r._initParams);
 
   const wg = computeWorkgroups(r);
@@ -206,8 +201,7 @@ export async function randomizeGrid(r, density = 0.15, initSize = null) {
   const extP = G3DL_LAYOUT.PARAMS.EXTRACT.U32;
   r._extractParams[extP.GRID_SIZE] = r.gridSize;
   r._extractParams[extP.MAX_CELLS] = r.maxCells;
-  r._extractParams[extP.PAD0] = 0;
-  r._extractParams[extP.PAD1] = 0;
+  // PAD0..PAD1 are zero-initialized and never mutated.
   r._queueWriteU32(r.extractParamsBuffer, 0, r._extractParams);
 
   // Reset population counter before the extract pass runs.

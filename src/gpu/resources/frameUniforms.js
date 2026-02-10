@@ -161,25 +161,18 @@ function updateRenderUniforms(r) {
   const cdz = r._target[2] - r._eye[2];
   u[uf.CAMERA_DIR + 3] = Math.max(1e-6, Math.hypot(cdx, cdy, cdz));
 
-  // gridSize/cellSize + padding to 16-byte boundary
+  // gridSize/cellSize (PAD0..PAD1 are zero-initialized and never mutated)
   u[uf.GRID_SIZE] = r.gridSize;
   u[uf.CELL_SIZE] = r.cellSize;
-  u[uf.PAD0] = 0.0;
-  u[uf.PAD1] = 0.0;
 
-  // lantern + padding
+  // lantern (PAD2..PAD3 are zero-initialized and never mutated)
   u[uf.LANTERN_ENABLED] = r.lanternEnabled;
   u[uf.LANTERN_STRENGTH] = r.lanternStrength;
-  u[uf.PAD2] = 0.0;
-  u[uf.PAD3] = 0.0;
 
-  // time (seconds since renderer creation), padding (_p5.._p7)
+  // time (seconds since renderer creation; PAD4..PAD6 are zero-initialized and never mutated)
   const nowMs =
     typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
   u[uf.TIME] = (nowMs - r._startTimeMs) * 0.001;
-  u[uf.PAD4] = 0.0;
-  u[uf.PAD5] = 0.0;
-  u[uf.PAD6] = 0.0;
 
   // Haze: rgb + strength.
   // - Strength is a maximum blend amount in [0..0.30], clamped by setHazeStrength().
