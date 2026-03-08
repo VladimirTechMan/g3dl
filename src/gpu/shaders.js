@@ -466,8 +466,12 @@ import { G3DL_LAYOUT } from "./dataLayout.js";
                 let centered = off - vec3<f32>(gridCenter);
                 let wpos = (pos * u.cellSize * 0.9) + (centered * u.cellSize);
 
-                // Calculate cell color based on Y position (gradient along vertical axis)
-                let t = off.y / u.gridSize;
+                // Calculate cell color based on Y position (gradient along vertical axis).
+                // Cell indices run 0..gridSize-1, so divide by (gridSize-1) to let the
+                // topmost layer reach the configured top color exactly. Clamp the denominator
+                // to 1.0 so a 1x1x1 grid remains well-defined.
+                let gradientDenom = max(u.gridSize - 1.0, 1.0);
+                let t = off.y / gradientDenom;
                 let color = mix(u.cellColorBottom.rgb, u.cellColorTop.rgb, t);
 
                 var o: VOut;
