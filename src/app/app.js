@@ -169,6 +169,7 @@ const ctx = {
   closeSettingsAndHelpPanels: () => {},
 
   destroyed: false,
+  destroyPromise: null,
 };
 
 /**
@@ -178,7 +179,8 @@ const ctx = {
  * cleanup on page unload. It is safe to call multiple times.
  */
 function destroyApp(_reason = "") {
-  if (ctx.destroyed) return;
+  if (ctx.destroyPromise) return ctx.destroyPromise;
+  if (ctx.destroyed) return Promise.resolve();
   ctx.destroyed = true;
 
   // Stop global listeners first to prevent late resize/interaction events from
@@ -216,46 +218,56 @@ function destroyApp(_reason = "") {
     // ignore
   }
 
-  try {
-    if (ctx.loop && typeof ctx.loop.destroy === "function") ctx.loop.destroy();
-    else if (ctx.loop) ctx.loop.stopPlaying();
-  } catch (_) {
-    // ignore
-  }
+  ctx.destroyPromise = (async () => {
+    try {
+      if (ctx.loop && typeof ctx.loop.destroy === "function") {
+        await ctx.loop.destroy();
+      } else if (ctx.loop) {
+        ctx.loop.stopPlaying?.();
+        await ctx.loop.waitForIdle?.();
+      }
+    } catch (_) {
+      // ignore
+    }
 
-  try {
-    if (ctx.orbitControls) ctx.orbitControls.destroy();
-  } catch (_) {
-    // ignore
-  }
+    try {
+      if (ctx.orbitControls) ctx.orbitControls.destroy();
+    } catch (_) {
+      // ignore
+    }
 
-  try {
-    if (ctx.uiBindings && typeof ctx.uiBindings.destroy === "function") ctx.uiBindings.destroy();
-  } catch (_) {
-    // ignore
-  }
+    try {
+      if (ctx.uiBindings && typeof ctx.uiBindings.destroy === "function") ctx.uiBindings.destroy();
+    } catch (_) {
+      // ignore
+    }
 
-  try {
-    if (ctx.ui.densityUi && typeof ctx.ui.densityUi.destroy === "function") ctx.ui.densityUi.destroy();
-  } catch (_) {
-    // ignore
-  }
+    try {
+      if (ctx.ui.densityUi && typeof ctx.ui.densityUi.destroy === "function") ctx.ui.densityUi.destroy();
+    } catch (_) {
+      // ignore
+    }
 
-  try {
-    if (ctx.renderer && typeof ctx.renderer.destroy === "function") ctx.renderer.destroy();
-  } catch (_) {
-    // ignore
-  }
+    try {
+      if (ctx.renderer && typeof ctx.renderer.destroy === "function") {
+        await ctx.renderer.destroy();
+      }
+    } catch (_) {
+      // ignore
+    }
 
-  ctx.renderer = null;
-  ctx.loop = null;
-  ctx.orbitControls = null;
-  ctx.screenShow = null;
-  ctx.ui.gridSizeUi = null;
-  ctx.ui.densityUi = null;
-  ctx.ui.rendererSettingsUi = null;
-  ctx.ui.rulesUi = null;
-  ctx.uiBindings = null;
+    ctx.renderer = null;
+    ctx.loop = null;
+    ctx.orbitControls = null;
+    ctx.screenShow = null;
+    ctx.ui.gridSizeUi = null;
+    ctx.ui.densityUi = null;
+    ctx.ui.rendererSettingsUi = null;
+    ctx.ui.rulesUi = null;
+    ctx.uiBindings = null;
+  })();
+
+  return ctx.destroyPromise;
 }
 
 // Defensive cleanup on navigation away.

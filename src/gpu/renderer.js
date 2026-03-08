@@ -883,10 +883,15 @@ export class WebGPURenderer {
    * accumulating GPU memory (and to prevent device-loss due to memory pressure
    * on mobile browsers).
    *
+   * Destruction is asynchronous: queued GPU work and pending readbacks are
+   * allowed to settle before buffers/textures are actually destroyed.
+   *
    * This method is intentionally idempotent.
+   *
+   * @returns {Promise<void>}
    */
   destroy() {
-    destroyRenderer(this);
+    return destroyRenderer(this);
   }
 
   // ----------------------------

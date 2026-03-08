@@ -284,8 +284,8 @@ export function resizeRenderer(r, options = {}) {
  *
  * @param {import("../renderer.js").WebGPURenderer} r
  */
-export function destroyRenderer(r) {
-  if (r.isDestroyed) return;
+export async function destroyRenderer(r) {
+  if (r._destroyPromise) return r._destroyPromise;
   r.isDestroyed = true;
 
   // Suppress teardown-time warnings from async readback helpers.
@@ -297,67 +297,106 @@ export function destroyRenderer(r) {
     } catch (_) {}
   };
 
-  // Grid-sized resources (including readback rings and AABB staging).
-  try {
-    destroyGridResourcesImpl(r);
-  } catch (_) {}
-
-  // Per-app resources
-  tryDestroy(r.cubeVertexBuffer);
-  r.cubeVertexBuffer = null;
-  tryDestroy(r.cubeIndexBuffer);
-  r.cubeIndexBuffer = null;
-
-  tryDestroy(r.uniformBuffer);
-  r.uniformBuffer = null;
-
-  tryDestroy(r.indirectArgsBuffer);
-  r.indirectArgsBuffer = null;
-  tryDestroy(r.drawArgsParamsBuffer);
-  r.drawArgsParamsBuffer = null;
-
-  tryDestroy(r.gridProjInstanceBuffer);
-  r.gridProjInstanceBuffer = null;
-
-  tryDestroy(r.depthTexture);
-  r.depthTexture = null;
-  r.depthTextureView = null;
-
-  // Pipelines/bind groups/shader modules do not have explicit destroy calls,
-  // but clearing references allows GC to reclaim associated JS objects.
-  r.bgPipeline = null;
-  r.renderPipeline = null;
-  r.computePipeline = null;
-  r.extractPipeline = null;
-  r.initPipeline = null;
-  r.drawArgsPipeline = null;
-  r.aabbPipeline = null;
-  r.aabbArgsPipeline = null;
-  r.gridProjPipeline = null;
-
-  r.bgBindGroup = null;
-  r.cellBindGroup = null;
-  r.drawArgsBindGroup = null;
-  r.gridProjBindGroup = null;
-  r.computeBindGroups = [null, null];
-  r.extractBindGroups = [null, null];
-  r.initBindGroups = [null, null];
-
-  r._ensureEssentialPipelinesPromise = null;
-  r._ensureAabbPipelinesPromise = null;
-
-  // Drop WebGPU device/context references.
-  r._canvasConfig = null;
-  r.context = null;
-  r.device = null;
-  r.onDeviceLost = null;
-
-  // Release BufferManager scratch references (and detach device).
-  try {
-    if (r._buffers && typeof r._buffers.destroy === "function") {
-      r._buffers.destroy();
-    } else if (r._buffers && typeof r._buffers.setDevice === "function") {
-      r._buffers.setDevice(null);
+  /**
+   * Best-effort quiesce of queued GPU work before destroying buffers/textures.
+   *
+   * Why both waits:
+   * - queue.onSubmittedWorkDone() covers already-submitted command buffers.
+   * - readbackPromises may still be awaiting mapAsync() even after GPU execution finishes.
+   *
+   * This keeps SPA-style teardown from destroying resources out from under an
+   * in-flight step or stats readback.
+   */
+  r._destroyPromise = (async () => {
+    try {
+      if (
+        r.device &&
+        r.device.queue &&
+        typeof r.device.queue.onSubmittedWorkDone === "function"
+      ) {
+        await r.device.queue.onSubmittedWorkDone();
+      }
+    } catch (_) {
+      // Ignore device-lost / transient failures during teardown.
     }
-  } catch (_) {}
+
+    try {
+      if (Array.isArray(r.readbackPromises) && r.readbackPromises.length > 0) {
+        await Promise.allSettled(r.readbackPromises.filter(Boolean));
+      }
+      if (r.populationReadbackPromise) {
+        await Promise.allSettled([r.populationReadbackPromise]);
+      }
+    } catch (_) {
+      // Ignore teardown-time readback failures.
+    }
+
+    // Grid-sized resources (including readback rings and AABB staging).
+    try {
+      destroyGridResourcesImpl(r);
+    } catch (_) {}
+
+    // Per-app resources
+    tryDestroy(r.cubeVertexBuffer);
+    r.cubeVertexBuffer = null;
+    tryDestroy(r.cubeIndexBuffer);
+    r.cubeIndexBuffer = null;
+
+    tryDestroy(r.uniformBuffer);
+    r.uniformBuffer = null;
+    tryDestroy(r.bgUniformBuffer);
+    r.bgUniformBuffer = null;
+
+    tryDestroy(r.indirectArgsBuffer);
+    r.indirectArgsBuffer = null;
+    tryDestroy(r.drawArgsParamsBuffer);
+    r.drawArgsParamsBuffer = null;
+
+    tryDestroy(r.gridProjInstanceBuffer);
+    r.gridProjInstanceBuffer = null;
+
+    tryDestroy(r.depthTexture);
+    r.depthTexture = null;
+    r.depthTextureView = null;
+
+    // Pipelines/bind groups/shader modules do not have explicit destroy calls,
+    // but clearing references allows GC to reclaim associated JS objects.
+    r.bgPipeline = null;
+    r.renderPipeline = null;
+    r.computePipeline = null;
+    r.extractPipeline = null;
+    r.initPipeline = null;
+    r.drawArgsPipeline = null;
+    r.aabbPipeline = null;
+    r.aabbArgsPipeline = null;
+    r.gridProjPipeline = null;
+
+    r.bgBindGroup = null;
+    r.cellBindGroup = null;
+    r.drawArgsBindGroup = null;
+    r.gridProjBindGroup = null;
+    r.computeBindGroups = [null, null];
+    r.extractBindGroups = [null, null];
+    r.initBindGroups = [null, null];
+
+    r._ensureEssentialPipelinesPromise = null;
+    r._ensureAabbPipelinesPromise = null;
+
+    // Drop WebGPU device/context references.
+    r._canvasConfig = null;
+    r.context = null;
+    r.device = null;
+    r.onDeviceLost = null;
+
+    // Release BufferManager scratch references (and detach device).
+    try {
+      if (r._buffers && typeof r._buffers.destroy === "function") {
+        r._buffers.destroy();
+      } else if (r._buffers && typeof r._buffers.setDevice === "function") {
+        r._buffers.setDevice(null);
+      }
+    } catch (_) {}
+  })();
+
+  return r._destroyPromise;
 }

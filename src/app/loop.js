@@ -79,6 +79,9 @@ export class LoopController {
     this.renderRequested = true; // render once after init
     this.lastRenderTimeMs = 0;
 
+    // Destroy lifecycle.
+    this._destroyPromise = null;
+
     // Resize handling.
     this.lastResizeEventMs = 0;
     this.appResizePending = true;
@@ -211,11 +214,14 @@ export class LoopController {
   /**
    * Tear down scheduled work owned by the loop controller.
    *
-   * This cannot cancel an in-flight GPU step, but it prevents future ticks/renders
-   * and detaches the renderer reference so callbacks become no-ops.
+   * This prevents future ticks/renders immediately, then waits for any already-queued
+   * simulation step to settle before detaching the renderer reference. That makes
+   * teardown safe for SPA-style unmounts where the renderer may be destroyed next.
+   *
+   * @returns {Promise<void>}
    */
-  destroy() {
-    if (this.isDestroyed) return;
+  async destroy() {
+    if (this._destroyPromise) return this._destroyPromise;
     this.isDestroyed = true;
 
     try {
@@ -239,9 +245,16 @@ export class LoopController {
       this.renderRafId = 0;
     }
 
-    // Best-effort: allow the queue to drain without touching the renderer.
-    this.renderer = null;
-    this.hooks = null;
+    this._destroyPromise = (async () => {
+      try {
+        await this.waitForIdle();
+      } finally {
+        this.renderer = null;
+        this.hooks = null;
+      }
+    })();
+
+    return this._destroyPromise;
   }
 
   /**
