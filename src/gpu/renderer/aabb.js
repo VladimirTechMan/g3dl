@@ -1,3 +1,5 @@
+import { G3DL_LAYOUT } from "../dataLayout.js";
+
 /**
  * Live-cell AABB readback helper.
  *
@@ -65,8 +67,14 @@ export async function requestLivingCellsAABB(r) {
   }
 
   // Copy both AABB and the current live-cell count into a staging buffer for readback.
-  enc.copyBufferToBuffer(r.aabbBuffer, 0, staging, 0, 32);
-  enc.copyBufferToBuffer(r.atomicCounterBuffer, 0, staging, 32, 4);
+  enc.copyBufferToBuffer(r.aabbBuffer, 0, staging, 0, G3DL_LAYOUT.AABB.BYTES);
+  enc.copyBufferToBuffer(
+    r.atomicCounterBuffer,
+    0,
+    staging,
+    G3DL_LAYOUT.AABB.READBACK.COUNT_OFFSET,
+    G3DL_LAYOUT.AABB.READBACK.COUNT_BYTES,
+  );
   r.device.queue.submit([enc.finish()]);
 
   // Best-effort: ensure unmapped prior to mapping
@@ -85,7 +93,7 @@ export async function requestLivingCellsAABB(r) {
       const maxX = u[3],
         maxY = u[4],
         maxZ = u[5];
-      const count = u[8] >>> 0; // offset 32 bytes
+      const count = u[G3DL_LAYOUT.AABB.READBACK.COUNT_INDEX] >>> 0;
 
       staging.unmap();
 

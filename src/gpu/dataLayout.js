@@ -263,6 +263,14 @@ maxZ: atomic<u32>,
 _pad0: u32,
 _pad1: u32,
 };`,
+  // Read back the accumulator plus the authoritative live-cell count from the extract pass.
+  READBACK: Object.freeze({
+    COUNT_OFFSET: 8 * 4,
+    COUNT_BYTES: 4,
+    TOTAL_BYTES: 8 * 4 + 4,
+    TOTAL_U32S: 9,
+    COUNT_INDEX: 8,
+  }),
 });
 
 // ----------------------------
@@ -279,6 +287,8 @@ function assertStatic() {
   invariant(PARAMS.DRAW_ARGS.BYTES === 16, "DRAW_ARGS params bytes expected to be 16 (4 u32).");
   invariant(INDIRECT.DRAW_INDEXED_BYTES === 20, "drawIndexedIndirect args bytes expected to be 20 (5 u32).");
   invariant(AABB.BYTES === 32, "AABB bytes expected to be 32 (8 u32).");
+  invariant(AABB.READBACK.COUNT_OFFSET === AABB.BYTES, "AABB readback count offset must follow the accumulator.");
+  invariant(AABB.READBACK.TOTAL_BYTES === 36, "AABB readback bytes expected to be 36 (AABB + count).");
 }
 
 function assertRenderer(renderer) {

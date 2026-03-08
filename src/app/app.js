@@ -178,7 +178,7 @@ const ctx = {
  * This is primarily future-proofing for SPA-style mounts/unmounts and for defensive
  * cleanup on page unload. It is safe to call multiple times.
  */
-function destroyApp(_reason = "") {
+function destroyApp() {
   if (ctx.destroyPromise) return ctx.destroyPromise;
   if (ctx.destroyed) return Promise.resolve();
   ctx.destroyed = true;
@@ -277,10 +277,10 @@ window.addEventListener(
     // If the page is being placed into the back/forward cache (bfcache), avoid tearing
     // down but suspend GPU work. The ctx will resume with listeners intact when restored.
     if (e && e.persisted) {
-      suspendForBackground("pagehide-bfcache");
+      suspendForBackground();
       return;
     }
-    destroyApp("pagehide");
+    destroyApp();
   },
   { passive: true, signal: APP_SIGNAL },
 );
@@ -290,12 +290,12 @@ window.addEventListener(
   "pageshow",
   (e) => {
     if (e && e.persisted) {
-      resumeFromBackground("pageshow-bfcache");
+      resumeFromBackground();
     }
   },
   { passive: true, signal: APP_SIGNAL },
 );
-window.addEventListener("beforeunload", () => destroyApp("beforeunload"), {
+window.addEventListener("beforeunload", () => destroyApp(), {
   signal: APP_SIGNAL,
 });
 
@@ -321,10 +321,8 @@ let _wasPlayingBeforeVisSuspend = false;
  * Suspend simulation and rendering due to backgrounding.
  *
  * This function is idempotent.
- *
- * @param {string} reason
  */
-function suspendForBackground(reason = "") {
+function suspendForBackground() {
   if (_visSuspended) return;
   _visSuspended = true;
 
@@ -367,10 +365,8 @@ function suspendForBackground(reason = "") {
  * Resume from a previously suspended background state.
  *
  * This function is idempotent.
- *
- * @param {string} reason
  */
-function resumeFromBackground(reason = "") {
+function resumeFromBackground() {
   if (!_visSuspended) return;
   _visSuspended = false;
 
@@ -412,8 +408,8 @@ function installVisibilityPolicy() {
   document.addEventListener(
     "visibilitychange",
     () => {
-      if (document.hidden) suspendForBackground("visibilitychange");
-      else resumeFromBackground("visibilitychange");
+      if (document.hidden) suspendForBackground();
+      else resumeFromBackground();
     },
     { signal: APP_SIGNAL },
   );
@@ -422,17 +418,17 @@ function installVisibilityPolicy() {
   // These events can fire without a visibilitychange in some cases.
   document.addEventListener(
     "freeze",
-    () => suspendForBackground("freeze"),
+    () => suspendForBackground(),
     { signal: APP_SIGNAL },
   );
   document.addEventListener(
     "resume",
-    () => resumeFromBackground("resume"),
+    () => resumeFromBackground(),
     { signal: APP_SIGNAL },
   );
 
   // If the page is already hidden at install time (rare), suspend immediately.
-  if (document.hidden) suspendForBackground("initial-hidden");
+  if (document.hidden) suspendForBackground();
 }
 
 installVisibilityPolicy();

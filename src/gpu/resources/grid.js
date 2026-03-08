@@ -133,11 +133,11 @@ export function createGridBuffers(r) {
   });
 
   const AABB_RING = 2;
-  const AABB_STAGING_SIZE = 48;
+  const aabbReadbackBytes = G3DL_LAYOUT.AABB.READBACK.TOTAL_BYTES;
   r.aabbStagingBuffers = new Array(AABB_RING);
   for (let i = 0; i < AABB_RING; i++) {
     r.aabbStagingBuffers[i] = r._createBuffer(`aabbStagingBuffer[${i}]`, {
-      size: AABB_STAGING_SIZE,
+      size: aabbReadbackBytes,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     });
   }
